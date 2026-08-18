@@ -16,6 +16,12 @@ export interface SelectorConfig {
   deleteMenuItemText: string[]
   /** Confirmation-dialog button text that finalises a delete. */
   confirmDeleteText: string[]
+  /** Exact accessible name(s) of the left-rail Profile navigation control. */
+  profileNavLabels: string[]
+  /** Accessible name(s) of the compose/create control (a logged-in-only signal). */
+  composeLabels: string[]
+  /** Text of the "Edit profile" control — only present on your OWN profile. */
+  editProfileText: string[]
   /** Profile tab accessible names. */
   tabs: { posts: string[]; replies: string[] }
   /** Text contained in the link that opens the "following" list. */
@@ -39,6 +45,9 @@ export interface SelectorConfig {
 }
 
 export const SELECTORS: SelectorConfig = {
+  profileNavLabels: ['Profile'],
+  composeLabels: ['Create', 'New thread', 'Post'],
+  editProfileText: ['Edit profile'],
   postMenuButtonLabels: ['More', 'More options', 'Options', 'Post options'],
   deleteMenuItemText: ['Delete'],
   confirmDeleteText: ['Delete'],

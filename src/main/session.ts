@@ -3,6 +3,14 @@ import { type SessionState } from '@shared/types.js'
 import { INJECTED_RUNTIME } from './automation/injected.js'
 import { SELECTORS } from './automation/selectors.js'
 
+function safeOrigin(url: string): string | null {
+  try {
+    return new URL(url).origin
+  } catch {
+    return null
+  }
+}
+
 /**
  * Tracks the Threads guest WebContents (the `<webview>` in the renderer) and
  * exposes login state + navigation helpers. Re-injects the DOM runtime on every
@@ -40,20 +48,28 @@ class ThreadsSession {
     return this.guest && !this.guest.isDestroyed() ? this.guest : null
   }
 
+  private async ensureRuntime(wc: WebContents): Promise<void> {
+    await wc.executeJavaScript(
+      '(window.__unthreader&&window.__unthreader.__v===1)?1:(' + INJECTED_RUNTIME + ')',
+      true
+    )
+  }
+
+  private settle(ms = 1500): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms))
+  }
+
   async getState(): Promise<SessionState> {
     const wc = this.getGuest()
     if (!wc) return { loggedIn: false, username: null, url: '' }
     try {
-      await wc.executeJavaScript(
-        '(window.__unthreader&&window.__unthreader.__v===1)?1:(' + INJECTED_RUNTIME + ')',
-        true
-      )
+      await this.ensureRuntime(wc)
       const res = (await wc.executeJavaScript('window.__unthreader.getSession()', true)) as {
         loggedIn: boolean
         username: string | null
       }
       if (res?.username) this.lastUsername = res.username
-      return { loggedIn: !!res?.loggedIn, username: res?.username ?? null, url: wc.getURL() }
+      return { loggedIn: !!res?.loggedIn, username: res?.username ?? this.lastUsername, url: wc.getURL() }
     } catch {
       return { loggedIn: false, username: this.lastUsername, url: wc.getURL() }
     }
@@ -62,12 +78,45 @@ class ThreadsSession {
   async navigateProfile(): Promise<void> {
     const wc = this.getGuest()
     if (!wc) return
+    await this.ensureRuntime(wc)
+
+    // Already on our own profile (e.g. the user navigated there manually)? Stay.
+    const already = await wc
+      .executeJavaScript('window.__unthreader.isOwnProfile()', true)
+      .catch(() => false)
+    if (already) {
+      const h = (await wc
+        .executeJavaScript('window.__unthreader.rememberMe()', true)
+        .catch(() => null)) as string | null
+      if (h) this.lastUsername = h
+      return
+    }
+
+    // Preferred: click Threads' own Profile nav — it always routes to the
+    // logged-in account, regardless of what handle we think we know.
+    const clicked = await wc
+      .executeJavaScript('window.__unthreader.goToOwnProfile()', true)
+      .catch(() => false)
+    if (clicked) {
+      await this.settle()
+      const handle = (await wc
+        .executeJavaScript('window.__unthreader.rememberMe()', true)
+        .catch(() => null)) as string | null
+      if (handle) {
+        this.lastUsername = handle
+        return
+      }
+    }
+
+    // Fallback: build the profile URL on the *live* origin from a known handle.
     const state = await this.getState()
     const user = state.username ?? this.lastUsername
-    const url = user ? `${SELECTORS.baseUrl}/@${user}` : SELECTORS.baseUrl
-    await wc.loadURL(url)
-    // Let the SPA hydrate the profile before automation inspects the DOM.
-    await new Promise((r) => setTimeout(r, 1500))
+    const origin = safeOrigin(wc.getURL()) ?? SELECTORS.baseUrl
+    if (user) {
+      await wc.loadURL(`${origin}/@${user}`)
+      await this.settle()
+      await wc.executeJavaScript('window.__unthreader.rememberMe()', true).catch(() => null)
+    }
   }
 
   private async emit(): Promise<void> {

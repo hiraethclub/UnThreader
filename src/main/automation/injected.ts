@@ -75,20 +75,67 @@ function runtimeSource(configJson: string): string {
     return null;
   }
 
+  // Finds Threads' own "Profile" navigation control (left rail). Clicking it
+  // routes to the logged-in user's OWN profile, so it is our source of truth for
+  // "who am I" — far more reliable than guessing a handle from feed anchors.
+  function inPost(el) {
+    for (var i = 0; i < SEL.postContainers.length; i++) {
+      if (el.closest && el.closest(SEL.postContainers[i])) return true;
+    }
+    return false;
+  }
+  function labelExact(el, labels) {
+    var n = norm(nameOf(el));
+    for (var i = 0; i < labels.length; i++) {
+      if (n === norm(labels[i])) return true;
+    }
+    return false;
+  }
+  function navProfileEl() {
+    // A visible nav control whose accessible name is EXACTLY "Profile" and that is
+    // not inside a post (so we never match a feed author's profile link).
+    var els = Array.prototype.slice.call(
+      document.querySelectorAll('a[aria-label],[role="link"][aria-label],[role="button"][aria-label],[role="tab"][aria-label],a[href^="/@"]')
+    );
+    for (var i = 0; i < els.length; i++) {
+      if (isVisible(els[i]) && !inPost(els[i]) && labelExact(els[i], SEL.profileNavLabels)) return els[i];
+    }
+    return null;
+  }
+  function navProfileHandle() {
+    var el = navProfileEl();
+    if (el && el.getAttribute) {
+      var h = el.getAttribute('href') || '';
+      var m = h.match(/^\\/@([^\\/?#]+)/);
+      if (m) return m[1];
+    }
+    return null;
+  }
+  function composeEl() {
+    var labelled = Array.prototype.slice.call(document.querySelectorAll('[aria-label]'));
+    for (var i = 0; i < labelled.length; i++) {
+      if (!inPost(labelled[i]) && labelExact(labelled[i], SEL.composeLabels) && isVisible(labelled[i])) return labelled[i];
+    }
+    return null;
+  }
+  // "Edit profile" only renders on the logged-in user's own profile, so it is a
+  // strong, label-independent confirmation that we are on the right page.
+  function hasEditProfile() {
+    return !!findByText(document, SEL.editProfileText);
+  }
+
   var api = {
     __v: 1,
+    _me: null,
     ping: function () { return 'ok'; },
 
     getSession: function () {
-      // Logged-in users have a profile link (/@handle) in the primary nav.
-      var links = Array.prototype.slice.call(document.querySelectorAll('a[href^="/@"]'));
-      var handle = null;
-      for (var i = 0; i < links.length; i++) {
-        var h = links[i].getAttribute('href');
-        if (h && /^\\/@[^\\/]+\\/?$/.test(h)) { handle = h.replace(/[\\/@]/g, ''); break; }
-      }
-      var loginBtn = findByText(document, ['log in', 'sign up', 'continue with']);
-      var loggedIn = !!handle || (!loginBtn && /threads\\.net\\/@/.test(location.href));
+      var onOwn = hasEditProfile();
+      var handle = this._me || navProfileHandle() || (onOwn ? this.currentHandle() : null);
+      var loginBtn = findByText(document, ['log in', 'sign up', 'continue with', 'log in with']);
+      // Logged-in UI shows the Profile nav, a Create/compose control, or (on your
+      // own profile) an Edit-profile button.
+      var loggedIn = !!this._me || onOwn || !!navProfileEl() || !!composeEl() || (!loginBtn && !!handle);
       return { loggedIn: loggedIn, username: handle };
     },
 
@@ -98,12 +145,30 @@ function runtimeSource(configJson: string): string {
       return m ? m[1] : null;
     },
 
-    // True only when the page is the logged-in user's OWN profile. This is the
-    // safety gate that prevents acting on anyone else's content.
+    // Click Threads' Profile nav to route to the user's own profile.
+    goToOwnProfile: function () {
+      var el = navProfileEl();
+      if (!el) return false;
+      el.click();
+      return true;
+    },
+
+    // Record the current profile handle as "me". Trust it when we arrived via the
+    // Profile nav or the page shows an Edit-profile button (own-profile proof).
+    rememberMe: function () {
+      var cur = this.currentHandle();
+      if (cur && hasEditProfile()) this._me = cur;
+      else if (cur && !this._me) this._me = cur;
+      return this._me;
+    },
+
+    // True only when the page is the logged-in user's OWN profile. Safety gate:
+    // accept when the URL handle matches "me", OR the Edit-profile button is present.
     isOwnProfile: function () {
       var cur = this.currentHandle();
       if (!cur) return false;
-      var me = this.getSession().username;
+      if (hasEditProfile()) return true;
+      var me = this._me || navProfileHandle();
       return !!me && norm(cur) === norm(me);
     },
 
