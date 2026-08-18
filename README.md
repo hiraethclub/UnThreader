@@ -23,6 +23,15 @@ the same buttons you'd click by hand, done automatically — inside an embedded 
 >   keep first (Instagram/Meta → *Your information and permissions → Download your information*).
 > - Start with **Dry run** (the default) to preview exactly what would be removed.
 
+## Download
+
+Grab the installer for your OS from the [Releases](https://github.com/hiraethclub/UnThreader/releases)
+page: `.exe` (Windows), `.AppImage` / `.deb` (Linux), `.dmg` (macOS).
+
+> The binaries are **unsigned**, so the OS will warn on first launch:
+> - **Windows:** SmartScreen → *More info → Run anyway*.
+> - **macOS:** right-click the app → *Open* (or *System Settings → Privacy & Security → Open Anyway*).
+
 ## Why a desktop app instead of the official API?
 
 Meta's official Threads API can delete posts/replies but is capped at **100 deletions per

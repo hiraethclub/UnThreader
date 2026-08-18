@@ -1,6 +1,11 @@
 appId: club.hiraeth.unthreader
 productName: UnThreader
 copyright: Copyright © 2026 Hiraeth Club
+publish:
+  provider: github
+  owner: hiraethclub
+  repo: UnThreader
+  releaseType: release
 directories:
   output: release
   buildResources: build
