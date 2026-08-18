@@ -10,17 +10,17 @@ const rand = (base: number, spread: number) => base + Math.random() * spread
 export async function loadMoreOrDone(ctx: Ctx, kind: 'feed' | 'dialog'): Promise<{ done: boolean }> {
   const method = kind === 'dialog' ? 'scrollDialog' : 'scrollFeed'
   const before = await ctx.rt<{ height: number }>(method).then((r) => r?.height ?? 0)
-  await sleep(rand(1000, 800))
+  await sleep(rand(1300, 900))
   const after = await ctx.rt<number>('measure', kind === 'dialog' ? 'dialog' : 'feed')
-  const grew = (after ?? 0) > before + 40
+  const grew = (after ?? 0) > before
 
   if (grew) {
     ctx.state.stall = 0
     return { done: false }
   }
   ctx.state.stall = (ctx.state.stall ?? 0) + 1
-  // Three stalled scrolls in a row → treat as the end of the list.
-  return { done: (ctx.state.stall ?? 0) >= 3 }
+  // Several stalled scrolls in a row → treat as the end of the list.
+  return { done: (ctx.state.stall ?? 0) >= 4 }
 }
 
 /**
@@ -32,6 +32,7 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
   return {
     id,
     async navigate(ctx: Ctx): Promise<void> {
+      await ctx.rt('resetMarks')
       await ctx.rt('activateTab', tab)
       await sleep(rand(1200, 800))
       ctx.state.stall = 0
@@ -76,6 +77,7 @@ export function makeFollowModule(id: 'unfollowAll' | 'removeFollowers', kind: 'u
   return {
     id,
     async navigate(ctx: Ctx): Promise<void> {
+      await ctx.rt('resetMarks')
       const opened = await ctx.rt<boolean>('openFollowDialog', dialog)
       if (!opened) ctx.log('warn', `Could not open the ${dialog} list`)
       await sleep(rand(1400, 900))

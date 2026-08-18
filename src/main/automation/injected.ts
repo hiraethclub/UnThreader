@@ -62,6 +62,29 @@ function runtimeSource(configJson: string): string {
     }
     return [];
   }
+  // The nearest actually-scrollable ancestor of an element, or the document
+  // scroller. Threads doesn't always scroll the window on profile pages, so we
+  // must scroll the real container to trigger lazy-loading of more posts.
+  function scrollableAncestor(el) {
+    var node = el && el.parentElement;
+    while (node && node !== document.body && node !== document.documentElement) {
+      var st = window.getComputedStyle(node);
+      if (/(auto|scroll|overlay)/.test((st.overflowY || '') + (st.overflow || '')) &&
+          node.scrollHeight > node.clientHeight + 40) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+  function feedScroller() {
+    var items = postContainers();
+    if (items.length) return scrollableAncestor(items[0]);
+    return document.scrollingElement || document.documentElement;
+  }
+  function isDocScroller(sc) {
+    return sc === document.scrollingElement || sc === document.documentElement || sc === document.body;
+  }
   function permalinkIn(el) {
     var a = el.querySelector('a[href*="/post/"]');
     if (a) return a.getAttribute('href');
@@ -127,7 +150,17 @@ function runtimeSource(configJson: string): string {
   var api = {
     __v: 1,
     _me: null,
+    _seen: {},
     ping: function () { return 'ok'; },
+
+    // Clear per-job dedupe state. Called at the start of every operation so a
+    // second run re-enumerates everything.
+    resetMarks: function () {
+      this._seen = {};
+      var m = document.querySelectorAll('[data-unthreader-skip]');
+      for (var i = 0; i < m.length; i++) m[i].removeAttribute('data-unthreader-skip');
+      return true;
+    },
 
     getSession: function () {
       var onOwn = hasEditProfile();
@@ -187,12 +220,25 @@ function runtimeSource(configJson: string): string {
       return false;
     },
 
+    // True if this post has already been handled this run (dedupe survives
+    // Threads recycling DOM nodes as you scroll a virtualized list).
+    _isHandled: function (el, id) {
+      if (el.getAttribute('data-unthreader-skip') === '1') return true;
+      if (id && this._seen[id]) return true;
+      return false;
+    },
+    _markHandled: function (el, id) {
+      if (id) this._seen[id] = 1;
+      else el.setAttribute('data-unthreader-skip', '1');
+    },
+
     // Returns the "..." menu button rect for the first not-yet-handled post.
     firstItemMenuRect: function () {
       var items = postContainers();
       for (var i = 0; i < items.length; i++) {
         var el = items[i];
-        if (el.getAttribute('data-unthreader-skip') === '1') continue;
+        var id = permalinkIn(el);
+        if (this._isHandled(el, id)) continue;
         var btn = null;
         var cand = el.querySelectorAll('[aria-label],[role="button"],button,svg');
         for (var j = 0; j < cand.length; j++) {
@@ -202,8 +248,8 @@ function runtimeSource(configJson: string): string {
           if (includesAny(nameOf(c), SEL.postMenuButtonLabels) && isVisible(clickTarget)) { btn = clickTarget; break; }
         }
         if (btn) {
-          var id = permalinkIn(el) || ('post#' + i);
-          return { ok: true, id: id, rect: rectOf(btn) };
+          this._markHandled(el, id);
+          return { ok: true, id: id || ('post#' + i), rect: rectOf(btn) };
         }
       }
       return { ok: false };
@@ -213,10 +259,11 @@ function runtimeSource(configJson: string): string {
     markFirstItem: function () {
       var items = postContainers();
       for (var i = 0; i < items.length; i++) {
-        if (items[i].getAttribute('data-unthreader-skip') === '1') continue;
-        var id = permalinkIn(items[i]) || ('post#' + i);
-        items[i].setAttribute('data-unthreader-skip', '1');
-        return { ok: true, id: id };
+        var el = items[i];
+        var id = permalinkIn(el);
+        if (this._isHandled(el, id)) continue;
+        this._markHandled(el, id);
+        return { ok: true, id: id || ('post#' + i) };
       }
       return { ok: false };
     },
@@ -252,13 +299,12 @@ function runtimeSource(configJson: string): string {
       var btns = clickables(dialog);
       for (var i = 0; i < btns.length; i++) {
         var b = btns[i];
-        var row = b.closest('[data-unthreader-skip]');
-        if (row) continue;
-        if (includesAny(textOf(b), texts)) {
-          var container = b.closest('div');
-          var id = (container && handleIn(container)) || ('row#' + i);
-          return { ok: true, id: id, rect: rectOf(b) };
-        }
+        if (!includesAny(textOf(b), texts)) continue;
+        var container = b.closest('div');
+        var id = (container && handleIn(container)) || null;
+        if (this._isHandled(b, id)) continue;
+        this._markHandled(b, id);
+        return { ok: true, id: id || ('row#' + i), rect: rectOf(b) };
       }
       return { ok: false };
     },
@@ -269,12 +315,13 @@ function runtimeSource(configJson: string): string {
       var texts = kind === 'remove' ? SEL.removeButtonText : SEL.followingButtonText;
       var btns = clickables(dialog);
       for (var i = 0; i < btns.length; i++) {
-        if (includesAny(textOf(btns[i]), texts)) {
-          var container = btns[i].closest('div');
-          var id = (container && handleIn(container)) || ('row#' + i);
-          if (container) container.setAttribute('data-unthreader-skip', '1');
-          return { ok: true, id: id };
-        }
+        var b = btns[i];
+        if (!includesAny(textOf(b), texts)) continue;
+        var container = b.closest('div');
+        var id = (container && handleIn(container)) || null;
+        if (this._isHandled(b, id)) continue;
+        this._markHandled(b, id);
+        return { ok: true, id: id || ('row#' + i) };
       }
       return { ok: false };
     },
@@ -287,7 +334,9 @@ function runtimeSource(configJson: string): string {
       return null;
     },
 
-    // Returns the current scroll height of the feed or the open dialog's scroller.
+    // Returns a progress signal for the feed/dialog: the scroller's scrollHeight
+    // plus the number of loaded posts, so growth is detected whether Threads
+    // grows the container or swaps in new virtualized rows.
     measure: function (kind) {
       if (kind === 'dialog') {
         var dialog = topOverlay();
@@ -298,12 +347,18 @@ function runtimeSource(configJson: string): string {
         }
         return dialog.scrollHeight;
       }
-      return document.body.scrollHeight;
+      var sc = feedScroller();
+      return sc.scrollHeight + postContainers().length;
     },
 
     scrollFeed: function () {
-      var before = document.body.scrollHeight;
-      window.scrollBy(0, Math.round(window.innerHeight * 0.9));
+      var sc = feedScroller();
+      var before = sc.scrollHeight + postContainers().length;
+      // Pull the last loaded post into view — the most reliable lazy-load trigger.
+      var items = postContainers();
+      if (items.length) { try { items[items.length - 1].scrollIntoView({ block: 'end' }); } catch (e) {} }
+      if (isDocScroller(sc)) window.scrollBy(0, Math.round(window.innerHeight * 0.9));
+      else sc.scrollTop = sc.scrollTop + Math.round(sc.clientHeight * 0.9);
       return { height: before };
     },
 
