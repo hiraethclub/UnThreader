@@ -22,18 +22,25 @@ body { background: var(--bg); color: var(--text); font-size: 14px; }
 
 #app { display: flex; height: 100vh; overflow: hidden; }
 
-/* ── Panel ─────────────────────────────────────────────── */
-#panel {
-  width: 420px;
-  min-width: 420px;
+/* ── Panes ─────────────────────────────────────────────── */
+.pane {
   height: 100%;
   overflow-y: auto;
   background: var(--panel);
-  border-right: 1px solid var(--border);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+#panel-left {
+  width: 400px;
+  min-width: 360px;
+  border-right: 1px solid var(--border);
+}
+#panel-right {
+  width: 380px;
+  min-width: 320px;
+  border-left: 1px solid var(--border);
 }
 
 .brand { display: flex; align-items: center; gap: 12px; }

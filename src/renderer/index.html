@@ -12,8 +12,8 @@
   </head>
   <body>
     <div id="app">
-      <!-- Left: control panel -->
-      <aside id="panel">
+      <!-- Left: settings + operations -->
+      <aside id="panel-left" class="pane">
         <header class="brand">
           <div class="brand-mark">✄</div>
           <div>
@@ -66,7 +66,23 @@
           <h2>Operations</h2>
           <div id="ops"></div>
         </section>
+      </aside>
 
+      <!-- Center: live Threads session -->
+      <main id="stage">
+        <div id="stage-bar">
+          <span class="muted small">Live Threads session — log in here</span>
+        </div>
+        <webview
+          id="threads"
+          partition="persist:threads"
+          allowpopups
+          src="https://www.threads.net/"
+        ></webview>
+      </main>
+
+      <!-- Right: job status + activity -->
+      <aside id="panel-right" class="pane">
         <section class="card job">
           <h2>Current job</h2>
           <div id="job-summary" class="muted">Idle.</div>
@@ -89,19 +105,6 @@
           <div id="log" class="log"></div>
         </section>
       </aside>
-
-      <!-- Right: live Threads session -->
-      <main id="stage">
-        <div id="stage-bar">
-          <span class="muted small">Live Threads session — log in here</span>
-        </div>
-        <webview
-          id="threads"
-          partition="persist:threads"
-          allowpopups
-          src="https://www.threads.net/"
-        ></webview>
-      </main>
     </div>
 
     <script type="module" src="./app.ts"></script>
