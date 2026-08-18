@@ -1,0 +1,27 @@
+name: release-notes
+
+# Sets the body of an existing GitHub Release from .github/RELEASE_NOTES.md.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the release to update
+        default: v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ inputs.tag }}" \
+            --repo ${{ github.repository }} \
+            --notes-file .github/RELEASE_NOTES.md
+          echo "Updated notes for ${{ inputs.tag }}"
