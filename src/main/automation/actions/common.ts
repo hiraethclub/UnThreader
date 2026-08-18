@@ -73,29 +73,50 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
       await sleep(400)
       ctx.debug(`after Delete click, buttons on page: ${await sample(ctx)}`)
 
+      // Threads always shows a "Delete post?" confirmation. If it never appears,
+      // the Delete click missed — that's a real failure, not a delete.
       const confirm = await ctx.pollRect('confirmRect', undefined, 8, 250)
-      if (confirm) {
-        ctx.debug(`clicking confirm "Delete" at ${Math.round(confirm.rect.x)},${Math.round(confirm.rect.y)}`)
-        await ctx.clickRect(confirm.rect)
-      } else {
-        ctx.debug(`no confirmation dialog appeared (delete may have been immediate)`)
+      if (!confirm) {
+        ctx.debug(`VERIFY: confirmation dialog never appeared -> delete did NOT take`)
+        await ctx.rt('closeOverlays')
+        ctx.log('warn', `Delete didn't take for this ${noun} (no confirm dialog)`, menu.id)
+        ctx.state.stall = 0
+        return { failed: true, target: menu.id }
       }
-      await sleep(rand(1100, 700))
+      ctx.debug(`clicking confirm "Delete" at ${Math.round(confirm.rect.x)},${Math.round(confirm.rect.y)}`)
+      await ctx.clickRect(confirm.rect)
 
-      // Verify the post is actually gone before claiming success. Only permalinked
-      // posts can be verified; treat non-permalinked ones as best-effort.
-      const canVerify = typeof menu.id === 'string' && menu.id.indexOf('/post/') !== -1
-      if (canVerify) {
-        const stillThere = await ctx.rt<boolean>('hasPost', menu.id).catch(() => false)
-        if (stillThere) {
-          ctx.debug(`VERIFY: ${menu.id} still present -> delete did NOT take`)
-          await ctx.rt('closeOverlays')
-          ctx.log('warn', `Delete didn't take for this ${noun} (retry on a later run)`, menu.id)
-          ctx.state.stall = 0
-          return { failed: true, target: menu.id }
+      // A successful delete closes the confirmation dialog. Poll until it's gone
+      // (up to ~10s to tolerate slow connections).
+      let closed = false
+      for (let i = 0; i < 25; i++) {
+        await sleep(400)
+        const open = await ctx.rt<boolean>('confirmOpen').catch(() => true)
+        if (!open) {
+          closed = true
+          break
         }
-        ctx.debug(`VERIFY: ${menu.id} gone -> deleted`)
       }
+      if (!closed) {
+        ctx.debug(`VERIFY: confirmation dialog stayed open -> delete did NOT complete`)
+        await ctx.rt('closeOverlays')
+        ctx.log('warn', `Delete didn't complete for this ${noun} (dialog stayed open)`, menu.id)
+        ctx.state.stall = 0
+        return { failed: true, target: menu.id }
+      }
+
+      // If a rate wall appeared right after confirming, the action may have been
+      // blocked despite the dialog closing — treat as unverified rather than risk
+      // a false success.
+      const wall = await ctx.rt<string | null>('detectRateWall').catch(() => null)
+      if (wall) {
+        ctx.debug(`VERIFY: rate wall ("${wall}") right after confirm -> treating as unverified`)
+        ctx.log('warn', `Possible rate limit; couldn't verify this ${noun} deleted (retry later)`, menu.id)
+        ctx.state.stall = 0
+        return { failed: true, target: menu.id }
+      }
+
+      ctx.debug(`VERIFY: confirmation dialog closed -> deleted`)
       ctx.log('success', `Deleted ${noun}`, menu.id)
       ctx.state.stall = 0
       return { acted: true, target: menu.id }

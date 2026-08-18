@@ -16,6 +16,8 @@ export interface SelectorConfig {
   deleteMenuItemText: string[]
   /** Confirmation-dialog button text that finalises a delete. */
   confirmDeleteText: string[]
+  /** The Cancel button in the confirmation dialog (present only while it is open). */
+  cancelText: string[]
   /** Exact accessible name(s) of the left-rail Profile navigation control. */
   profileNavLabels: string[]
   /** Accessible name(s) of the compose/create control (a logged-in-only signal). */
@@ -39,6 +41,7 @@ export const SELECTORS: SelectorConfig = {
   postMenuButtonLabels: ['More', 'More options', 'Options', 'Post options'],
   deleteMenuItemText: ['Delete'],
   confirmDeleteText: ['Delete'],
+  cancelText: ['Cancel'],
   tabs: {
     posts: ['Threads'],
     replies: ['Replies']

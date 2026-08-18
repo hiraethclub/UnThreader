@@ -79,6 +79,21 @@ function runtimeSource(configJson: string): string {
     }
     return false;
   }
+  // Do two buttons live inside the same small dialog-sized overlay? Used to
+  // recognise the delete confirmation (its Delete + Cancel share such a box).
+  function sharesDialog(a, b) {
+    var anc = a;
+    for (var d = 0; d < 7 && anc; d++) {
+      if (anc !== document.body && anc !== document.documentElement && anc.contains(b)) {
+        var r = anc.getBoundingClientRect();
+        if (r.width > 0 && r.width < window.innerWidth * 0.95 && r.height < window.innerHeight * 0.95) {
+          return true;
+        }
+      }
+      anc = anc.parentElement;
+    }
+    return false;
+  }
   function topOverlay() {
     // Prefer an open dialog/menu, else the whole document.
     var overlays = Array.prototype.slice.call(
@@ -306,13 +321,22 @@ function runtimeSource(configJson: string): string {
       return el ? { ok: true, rect: rectNoScroll(el) } : { ok: false };
     },
 
-    // Verification: is a post with this permalink still present on the page?
-    hasPost: function (href) {
-      if (!href) return false;
-      var items = postContainers();
-      for (var i = 0; i < items.length; i++) {
-        var a = items[i].querySelector('a[href*="' + href + '"]');
-        if (a) return true;
+    // Is the delete confirmation dialog currently open? Detected precisely: a
+    // small shared overlay containing BOTH a "Delete" and a "Cancel" button.
+    // A lone Cancel elsewhere, or a post containing the word "Delete", won't match.
+    // Fast path: if there is no visible Cancel at all, the dialog is closed.
+    confirmOpen: function () {
+      var els = clickables(document);
+      var cancels = [], dels = [];
+      for (var i = 0; i < els.length; i++) {
+        if (labelExactAny(els[i], SEL.cancelText)) cancels.push(els[i]);
+        else if (labelExactAny(els[i], SEL.confirmDeleteText)) dels.push(els[i]);
+      }
+      if (!cancels.length || !dels.length) return false;
+      for (var c = 0; c < cancels.length; c++) {
+        for (var d = 0; d < dels.length; d++) {
+          if (sharesDialog(cancels[c], dels[d])) return true;
+        }
       }
       return false;
     },
