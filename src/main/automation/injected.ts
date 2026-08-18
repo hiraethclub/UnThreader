@@ -31,10 +31,19 @@ function runtimeSource(configJson: string): string {
     if (el.getAttribute && el.getAttribute('aria-disabled') === 'true') return false;
     return true;
   }
-  function rectOf(el) {
-    try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch (e) {}
+  function rectFrom(el) {
     var r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, top: r.top };
+  }
+  // For feed items: scroll into view first (they may be below the fold).
+  function rectOf(el) {
+    try { el.scrollIntoView({ block: 'center', inline: 'center' }); } catch (e) {}
+    return rectFrom(el);
+  }
+  // For popup menu/dialog controls: they're already visible, and scrolling them
+  // shifts the popup and makes the click miss — so measure without scrolling.
+  function rectNoScroll(el) {
+    return rectFrom(el);
   }
   function clickables(scope) {
     scope = scope || document;
@@ -289,12 +298,23 @@ function runtimeSource(configJson: string): string {
       // The ⋯ menu may be role-less, so search the whole document and take the
       // topmost "Delete" control rather than relying on an ARIA overlay role.
       var el = findActionEl(SEL.deleteMenuItemText);
-      return el ? { ok: true, rect: rectOf(el) } : { ok: false };
+      return el ? { ok: true, rect: rectNoScroll(el) } : { ok: false };
     },
 
     confirmRect: function () {
       var el = findActionEl(SEL.confirmDeleteText);
-      return el ? { ok: true, rect: rectOf(el) } : { ok: false };
+      return el ? { ok: true, rect: rectNoScroll(el) } : { ok: false };
+    },
+
+    // Verification: is a post with this permalink still present on the page?
+    hasPost: function (href) {
+      if (!href) return false;
+      var items = postContainers();
+      for (var i = 0; i < items.length; i++) {
+        var a = items[i].querySelector('a[href*="' + href + '"]');
+        if (a) return true;
+      }
+      return false;
     },
 
     // Diagnostic: visible clickable labels currently on the page (for debug log).

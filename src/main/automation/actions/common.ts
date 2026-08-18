@@ -80,7 +80,22 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
       } else {
         ctx.debug(`no confirmation dialog appeared (delete may have been immediate)`)
       }
-      await sleep(rand(900, 700))
+      await sleep(rand(1100, 700))
+
+      // Verify the post is actually gone before claiming success. Only permalinked
+      // posts can be verified; treat non-permalinked ones as best-effort.
+      const canVerify = typeof menu.id === 'string' && menu.id.indexOf('/post/') !== -1
+      if (canVerify) {
+        const stillThere = await ctx.rt<boolean>('hasPost', menu.id).catch(() => false)
+        if (stillThere) {
+          ctx.debug(`VERIFY: ${menu.id} still present -> delete did NOT take`)
+          await ctx.rt('closeOverlays')
+          ctx.log('warn', `Delete didn't take for this ${noun} (retry on a later run)`, menu.id)
+          ctx.state.stall = 0
+          return { failed: true, target: menu.id }
+        }
+        ctx.debug(`VERIFY: ${menu.id} gone -> deleted`)
+      }
       ctx.log('success', `Deleted ${noun}`, menu.id)
       ctx.state.stall = 0
       return { acted: true, target: menu.id }
