@@ -49,10 +49,10 @@ class ThreadsSession {
   }
 
   private async ensureRuntime(wc: WebContents): Promise<void> {
-    await wc.executeJavaScript(
-      '(window.__unthreader&&window.__unthreader.__v===1)?1:(' + INJECTED_RUNTIME + ')',
-      true
-    )
+    // INJECTED_RUNTIME is an idempotent IIFE (it early-returns if already present),
+    // so we can just run it. It must NOT be wrapped in an expression: it ends in a
+    // statement/semicolon and would be a syntax error inside e.g. a ternary.
+    await wc.executeJavaScript(INJECTED_RUNTIME, true)
   }
 
   private settle(ms = 1500): Promise<void> {
