@@ -105,10 +105,11 @@ function buildMenu(): void {
 
 function createWindow(): void {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: 1360,
+    height: 1040,
     minWidth: 900,
     minHeight: 600,
+    center: true,
     title: 'UnThreader',
     backgroundColor: '#101014',
     webPreferences: {
