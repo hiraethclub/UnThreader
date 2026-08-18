@@ -175,6 +175,12 @@ export class AutomationEngine {
           if (!settings.dryRun && !result.skipped) rl.recordAction()
           if (successStreak >= 5) rl.relaxBackoff()
           this.setState({ processed: this.state.processed + 1 })
+
+          // Stop after the per-run limit, if one is set.
+          if (settings.limitPerRun > 0 && this.state.processed >= settings.limitPerRun) {
+            this.log('success', `Reached the run limit of ${settings.limitPerRun}. Stopping.`)
+            break
+          }
         }
         // Neither done/failed/acted → a scroll/continue step; loop again.
       }

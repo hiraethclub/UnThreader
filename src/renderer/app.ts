@@ -18,12 +18,16 @@ const settingFields: (keyof Settings)[] = [
   'minDelayMs',
   'maxDelayMs',
   'dailyCap',
-  'maxConsecutiveFailures'
+  'maxConsecutiveFailures',
+  'limitPerRun'
 ]
+const toggleFields: (keyof Settings)[] = ['dryRun', 'persistLogin', 'persistLog']
 
 function fillSettings(s: Settings): void {
   settings = s
-  ;($('dryRun') as HTMLInputElement).checked = s.dryRun
+  for (const key of toggleFields) {
+    ;($(key) as HTMLInputElement).checked = Boolean(s[key])
+  }
   for (const key of settingFields) {
     ;($(key) as HTMLInputElement).value = String(s[key])
   }
@@ -35,15 +39,19 @@ async function persist(partial: Partial<Settings>): Promise<void> {
   renderOps()
 }
 
-$('dryRun').addEventListener('change', (e) => {
-  void persist({ dryRun: (e.target as HTMLInputElement).checked })
-})
+for (const key of toggleFields) {
+  $(key).addEventListener('change', (e) => {
+    void persist({ [key]: (e.target as HTMLInputElement).checked } as Partial<Settings>)
+  })
+}
 for (const key of settingFields) {
   $(key).addEventListener('change', (e) => {
     const val = Number((e.target as HTMLInputElement).value)
     if (!Number.isNaN(val)) void persist({ [key]: val } as Partial<Settings>)
   })
 }
+
+$('btn-logout').addEventListener('click', () => void api.clearSession())
 
 // ── Operations ───────────────────────────────────────────────────────────────
 function renderOps(): void {

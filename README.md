@@ -50,7 +50,16 @@ cap and the approval step, and needs no server infrastructure.
   for the list to reflow — this is robust against Threads' virtualized, infinite-scroll lists.
 - A **rate limiter** paces actions with randomized human-like delays, an optional daily
   cap, and exponential backoff that **auto-pauses** when Threads shows a "try again later"
-  wall.
+  wall. A **Limit per run** setting stops a run after N items (handy for a small test).
+
+### Privacy
+
+- The **activity log is not written to disk** by default — it lives only in memory for the
+  session, and any existing log file is wiped at launch. Enable *Keep activity log on disk*
+  if you want a persistent history.
+- Your Threads login persists between launches for convenience. Turn off *Stay logged in
+  between launches* to have it cleared on quit, or click *Log out of Threads now* to clear
+  cookies and site data immediately.
 
 ## Project layout
 

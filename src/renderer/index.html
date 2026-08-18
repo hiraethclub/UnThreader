@@ -55,6 +55,10 @@
               Stop after N fails
               <input type="number" id="maxConsecutiveFailures" min="1" step="1" />
             </label>
+            <label class="field">
+              Limit per run (0 = all)
+              <input type="number" id="limitPerRun" min="0" step="1" />
+            </label>
           </div>
           <p class="hint">
             Slower pacing is safer. Threads automation is against Meta's ToS and bulk
@@ -65,6 +69,27 @@
         <section class="card">
           <h2>Operations</h2>
           <div id="ops"></div>
+        </section>
+
+        <section class="card">
+          <h2>Privacy</h2>
+          <label class="switch">
+            <input type="checkbox" id="persistLogin" />
+            <span class="slider"></span>
+            <span class="switch-label">Stay logged in between launches</span>
+          </label>
+          <label class="switch" style="margin-top: 10px">
+            <input type="checkbox" id="persistLog" />
+            <span class="slider"></span>
+            <span class="switch-label">Keep activity log on disk <em>(off = memory only)</em></span>
+          </label>
+          <button id="btn-logout" class="btn ghost small" style="margin-top: 12px">
+            Log out of Threads now
+          </button>
+          <p class="hint">
+            The log is not saved to disk unless you enable it, and is cleared at each launch.
+            Logging out clears cookies and site data for this app's Threads session.
+          </p>
         </section>
       </aside>
 

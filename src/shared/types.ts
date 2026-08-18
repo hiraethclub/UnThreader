@@ -22,6 +22,12 @@ export interface Settings {
   backoffBaseMs: number
   /** Maximum number of consecutive failures before a job aborts. */
   maxConsecutiveFailures: number
+  /** Stop a single run after this many items. 0 = no limit. */
+  limitPerRun: number
+  /** Keep the Threads login between launches. When false, it's cleared on quit. */
+  persistLogin: boolean
+  /** Write the activity log to disk. When false, it's kept only in memory. */
+  persistLog: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,7 +36,10 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyCap: 0,
   dryRun: true,
   backoffBaseMs: 60_000,
-  maxConsecutiveFailures: 8
+  maxConsecutiveFailures: 8,
+  limitPerRun: 0,
+  persistLogin: true,
+  persistLog: false
 }
 
 export type JobStatus = 'idle' | 'running' | 'paused' | 'stopping' | 'done' | 'error'
@@ -95,6 +104,7 @@ export const IPC = {
   clearLog: 'log:clear',
   getSession: 'session:get',
   navigateProfile: 'session:navigateProfile',
+  clearSession: 'session:clear',
   // main -> renderer (send)
   onJobState: 'job:state',
   onLog: 'log:entry',

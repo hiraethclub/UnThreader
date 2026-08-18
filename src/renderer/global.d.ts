@@ -19,6 +19,7 @@ export interface UnthreaderApi {
   clearLog(): Promise<void>
   getSession(): Promise<SessionState>
   navigateProfile(): Promise<void>
+  clearSession(): Promise<void>
   onJobState(cb: (s: JobState) => void): () => void
   onLog(cb: (e: LogEntry) => void): () => void
   onSession(cb: (s: SessionState) => void): () => void

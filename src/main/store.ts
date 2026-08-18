@@ -23,6 +23,9 @@ class Store {
     } catch {
       await this.saveSettings(this.settings)
     }
+    // Privacy: if the on-disk log is not enabled, wipe any remnants at startup so
+    // nothing from previous sessions lingers on disk.
+    if (!this.settings.persistLog) await this.clearLog()
   }
 
   getSettings(): Settings {
@@ -32,11 +35,14 @@ class Store {
   async saveSettings(partial: Partial<Settings>): Promise<Settings> {
     this.settings = { ...this.settings, ...partial }
     await fs.writeFile(this.settingsPath, JSON.stringify(this.settings, null, 2), 'utf8')
+    // Turning disk logging off should immediately remove what's on disk.
+    if (partial.persistLog === false) await this.clearLog()
     return this.getSettings()
   }
 
   /** Synchronous append keeps ordering guarantees even under rapid logging. */
   appendLog(entry: LogEntry): void {
+    if (!this.settings.persistLog) return
     try {
       appendFileSync(this.logPath, JSON.stringify(entry) + '\n', 'utf8')
     } catch {
@@ -45,6 +51,7 @@ class Store {
   }
 
   async readLog(limit = 500): Promise<LogEntry[]> {
+    if (!this.settings.persistLog) return []
     try {
       const raw = await fs.readFile(this.logPath, 'utf8')
       const lines = raw.split('\n').filter(Boolean)

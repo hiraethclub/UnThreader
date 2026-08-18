@@ -79,4 +79,5 @@ export function registerIpc(panel: WebContents): void {
 
   ipcMain.handle(IPC.getSession, () => threadsSession.getState())
   ipcMain.handle(IPC.navigateProfile, () => threadsSession.navigateProfile())
+  ipcMain.handle(IPC.clearSession, () => threadsSession.clearSession())
 }

@@ -31,6 +31,7 @@ const api = {
 
   getSession: (): Promise<SessionState> => ipcRenderer.invoke(IPC.getSession),
   navigateProfile: (): Promise<void> => ipcRenderer.invoke(IPC.navigateProfile),
+  clearSession: (): Promise<void> => ipcRenderer.invoke(IPC.clearSession),
 
   onJobState: (cb: (s: JobState) => void) => sub<JobState>(IPC.onJobState, cb),
   onLog: (cb: (e: LogEntry) => void) => sub<LogEntry>(IPC.onLog, cb),

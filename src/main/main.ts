@@ -2,12 +2,11 @@ import { app, BrowserWindow, session, shell } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { store } from './store.js'
-import { threadsSession } from './session.js'
+import { threadsSession, THREADS_PARTITION } from './session.js'
 import { registerIpc } from './ipc.js'
 import { SELECTORS } from './automation/selectors.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const THREADS_PARTITION = 'persist:threads'
 
 /** Present Threads with a clean desktop-Chrome UA (no "Electron" token). */
 function cleanUserAgent(): string {
@@ -74,6 +73,20 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+// If the user opted out of persistent login, clear the Threads session on quit.
+app.on('before-quit', async (event) => {
+  if (store.getSettings().persistLogin) return
+  event.preventDefault()
+  try {
+    const ses = session.fromPartition(THREADS_PARTITION)
+    await ses.clearStorageData()
+    await ses.clearCache()
+  } catch {
+    /* ignore */
+  }
+  app.exit(0)
 })
 
 app.on('window-all-closed', () => {

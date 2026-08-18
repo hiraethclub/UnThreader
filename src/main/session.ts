@@ -1,7 +1,10 @@
-import type { WebContents } from 'electron'
+import { session, type WebContents } from 'electron'
 import { type SessionState } from '@shared/types.js'
 import { INJECTED_RUNTIME } from './automation/injected.js'
 import { SELECTORS } from './automation/selectors.js'
+
+/** Persistent partition used by the Threads <webview>. */
+export const THREADS_PARTITION = 'persist:threads'
 
 function safeOrigin(url: string): string | null {
   try {
@@ -125,6 +128,27 @@ class ThreadsSession {
       await this.settle()
       await wc.executeJavaScript('window.__unthreader.rememberMe()', true).catch(() => null)
     }
+  }
+
+  /** Clear cookies + storage for the Threads partition and reload to logged-out. */
+  async clearSession(): Promise<void> {
+    const wc = this.getGuest()
+    this.lastUsername = null
+    try {
+      const ses = session.fromPartition(THREADS_PARTITION)
+      await ses.clearStorageData()
+      await ses.clearCache()
+    } catch {
+      /* ignore */
+    }
+    if (wc && !wc.isDestroyed()) {
+      try {
+        await wc.loadURL(SELECTORS.baseUrl)
+      } catch {
+        /* ignore */
+      }
+    }
+    void this.emit()
   }
 
   private async emit(): Promise<void> {
