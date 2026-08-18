@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>About UnThreader</title>
+    <style>
+      :root {
+        --bg: #101014;
+        --card: #1e1e26;
+        --border: #2c2c38;
+        --text: #ececf1;
+        --muted: #9a9aab;
+        --accent: #8a8af6;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 28px 26px;
+        user-select: none;
+      }
+      .mark {
+        width: 56px; height: 56px; border-radius: 14px;
+        display: grid; place-items: center; font-size: 28px; color: #fff;
+        background: linear-gradient(135deg, #6d6df0, #f0556d);
+        margin-bottom: 14px;
+      }
+      h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
+      .version { color: var(--muted); font-size: 12px; margin-top: 3px; }
+      .tagline { font-size: 13.5px; margin: 16px 0 0; line-height: 1.5; }
+      .snark {
+        font-size: 12.5px; color: var(--muted); font-style: italic;
+        margin: 12px 0 0; line-height: 1.55; max-width: 360px;
+      }
+      .meta {
+        margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+        width: 100%; max-width: 360px; font-size: 12.5px; color: var(--muted); line-height: 1.7;
+      }
+      .meta a { color: var(--accent); text-decoration: none; }
+      .meta a:hover { text-decoration: underline; }
+      .name { color: var(--text); }
+    </style>
+  </head>
+  <body>
+    <div class="mark">✄</div>
+    <h1>UnThreader</h1>
+    <div class="version" id="version">version —</div>
+
+    <p class="tagline">Bulk-deletes your own Threads posts and replies. That's the whole app.</p>
+
+    <p class="snark">
+      Made because the copycat "delete your Threads" websites want your login <em>and</em>
+      your money to click a button you already own. Deleting your own posts shouldn't cost
+      a subscription. This one runs on your machine, for free, and never sees your password.
+    </p>
+
+    <div class="meta">
+      <div>Made by <span class="name">Aisling de Grás</span></div>
+      <div><a href="mailto:aisling@hiraeth.club">aisling@hiraeth.club</a></div>
+      <div>MIT licensed</div>
+    </div>
+  </body>
+</html>

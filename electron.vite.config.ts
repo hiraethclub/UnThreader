@@ -27,7 +27,10 @@ export default defineConfig({
     resolve: { alias: { '@shared': shared } },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: {
+          index: resolve('src/renderer/index.html'),
+          about: resolve('src/renderer/about.html')
+        }
       }
     }
   }
