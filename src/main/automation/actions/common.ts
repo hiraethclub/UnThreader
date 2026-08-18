@@ -92,16 +92,28 @@ export function makeFollowModule(id: 'unfollowAll' | 'removeFollowers', kind: 'u
     id,
     async navigate(ctx: Ctx): Promise<void> {
       await ctx.rt('resetMarks')
-      const opened = await ctx.rt<boolean>('openConnectionsDialog')
-      if (!opened) {
-        ctx.log('warn', 'Could not open the followers/following dialog from your profile.')
+      // Open the connections modal with a REAL click (synthetic clicks don't open it).
+      const link = await ctx.pollRect('connectionsLinkRect', undefined, 6, 300)
+      if (!link) {
+        ctx.log('warn', 'Could not find the followers count on your profile.')
         return
       }
-      await sleep(rand(1400, 900))
+      await ctx.clickRect(link.rect)
+      // Wait for the modal to actually appear.
+      let open = false
+      for (let i = 0; i < 10 && !open; i++) {
+        open = await ctx.rt<boolean>('connectionsOpen').catch(() => false)
+        if (!open) await sleep(400)
+      }
+      if (!open) {
+        ctx.log('warn', 'Clicked the followers count but the list dialog did not open.')
+        return
+      }
       // Switch to the correct tab (Following for unfollow, Followers for remove).
-      const tabbed = await ctx.rt<boolean>('selectConnectionsTab', dialog)
-      if (!tabbed) ctx.log('warn', `Could not find the "${dialog}" tab in the dialog.`)
-      await sleep(rand(1200, 800))
+      const tab = await ctx.pollRect('connectionsTabRect', dialog, 6, 300)
+      if (tab) await ctx.clickRect(tab.rect)
+      else ctx.log('info', `No separate "${dialog}" tab found; using the open list as-is.`)
+      await sleep(rand(1300, 800))
       ctx.state.stall = 0
     },
     async step(ctx: Ctx) {
