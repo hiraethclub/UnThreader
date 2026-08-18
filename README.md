@@ -1,0 +1,105 @@
+# UnThreader
+
+A cross-platform **desktop app** (Windows, Linux, macOS) that bulk-cleans **your own**
+[Threads](https://www.threads.net) account:
+
+- 🗑️ Delete **all your posts**
+- 💬 Delete **all your replies**
+- 👤 **Unfollow everyone** you follow *(optional)*
+- 🚫 **Remove all your followers** *(optional)*
+
+It works by driving the real Threads **web** interface with your own logged-in session —
+the same buttons you'd click by hand, done automatically — inside an embedded browser.
+
+> [!WARNING]
+> **Read this first.**
+> - This automates threads.net, which is **against Meta's Terms of Service**. Aggressive
+>   bulk actions can get an account rate-limited, temporarily blocked, or banned.
+> - Use it **only on your own account**, and understand the risk.
+> - Deletions on Threads are **permanent**. There is no undo. Export anything you want to
+>   keep first (Instagram/Meta → *Your information and permissions → Download your information*).
+> - Start with **Dry run** (the default) to preview exactly what would be removed.
+
+## Why a desktop app instead of the official API?
+
+Meta's official Threads API can delete posts/replies but is capped at **100 deletions per
+24h**, requires App Review to ship, and has **no follower or follow/unfollow endpoints at
+all**. Driving the web UI with your own session is the only approach that can do all four
+operations without server infrastructure or Meta approval.
+
+## How it works
+
+```
+┌─────────────────────────┐     IPC      ┌───────────────────────────┐
+│  Control panel (renderer)│◄────────────►│   Main process            │
+│  settings · log · start  │              │   engine · rate limiter   │
+└─────────────────────────┘              │   store (settings + log)  │
+                                          └────────────┬──────────────┘
+                                                       │ executeJavaScript + CDP mouse
+                                          ┌────────────▼──────────────┐
+                                          │  Threads <webview> (your  │
+                                          │  logged-in session)       │
+                                          └───────────────────────────┘
+```
+
+- The right pane is a live Threads session — **you log in there yourself**; no credentials
+  ever touch the app.
+- Each operation repeatedly acts on the **first item at the top of the list**, then waits
+  for the list to reflow — this is robust against Threads' virtualized, infinite-scroll lists.
+- A **rate limiter** paces actions with randomized human-like delays, an optional daily
+  cap, and exponential backoff that **auto-pauses** when Threads shows a "try again later"
+  wall.
+
+## Project layout
+
+| Path | Purpose |
+| --- | --- |
+| `src/main/main.ts` | App entry, window, persistent Threads session partition |
+| `src/main/ipc.ts` | IPC handlers between renderer and engine |
+| `src/main/store.ts` | Settings + append-only action log (in Electron `userData`) |
+| `src/main/session.ts` | Login detection + navigation |
+| `src/main/automation/engine.ts` | Job runner: pause/resume/stop, pacing, backoff |
+| `src/main/automation/rateLimiter.ts` | Delays, daily cap, backoff |
+| `src/main/automation/cdpInput.ts` | Human-like mouse clicks via Chrome DevTools Protocol |
+| `src/main/automation/injected.ts` | The in-page DOM library run inside Threads |
+| **`src/main/automation/selectors.ts`** | **Every Threads DOM anchor — the one file to update when Threads changes its UI** |
+| `src/main/automation/actions/` | The four operations |
+| `src/renderer/` | Control-panel UI |
+
+### When Threads changes its layout
+
+The app finds buttons by ARIA labels and visible text, all defined in
+**`src/main/automation/selectors.ts`**. If a redesign breaks it, update the text/labels
+there — nothing else should need to change.
+
+## Develop
+
+```bash
+npm install
+npm run dev        # launch the app with hot reload
+npm run typecheck  # type-check main + renderer
+npm run build      # bundle to out/
+```
+
+## Package installers
+
+```bash
+npm run dist:win     # NSIS .exe  (build on Windows)
+npm run dist:linux   # AppImage + .deb
+npm run dist:mac     # .dmg       (build on macOS)
+```
+
+Cross-OS installers are also produced by the GitHub Actions workflow in
+`.github/workflows/build.yml`.
+
+## Recommended first run
+
+1. `npm run dev`, then **log into your account** in the right pane.
+2. Leave **Dry run ON**. Click *Run* on *Delete all posts* — the Activity log lists every
+   post it *would* delete. Confirm the count looks right.
+3. Turn **Dry run OFF**, keep the default pacing, and run again — type the confirmation
+   word when prompted. Watch the first few deletions, and use **Stop** any time.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

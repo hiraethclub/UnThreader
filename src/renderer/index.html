@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UnThreader</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Left: control panel -->
+      <aside id="panel">
+        <header class="brand">
+          <div class="brand-mark">✄</div>
+          <div>
+            <h1>UnThreader</h1>
+            <p class="tag">Bulk-clean your own Threads account</p>
+          </div>
+        </header>
+
+        <section class="card session">
+          <div class="row between">
+            <span id="session-dot" class="dot off"></span>
+            <span id="session-text" class="muted">Checking session…</span>
+          </div>
+          <button id="btn-profile" class="btn ghost small">Go to my profile ↗</button>
+        </section>
+
+        <section class="card">
+          <h2>Safety</h2>
+          <label class="switch">
+            <input type="checkbox" id="dryRun" />
+            <span class="slider"></span>
+            <span class="switch-label">Dry run <em>(preview only — deletes nothing)</em></span>
+          </label>
+
+          <div class="grid2">
+            <label class="field">
+              Min delay (ms)
+              <input type="number" id="minDelayMs" min="500" step="250" />
+            </label>
+            <label class="field">
+              Max delay (ms)
+              <input type="number" id="maxDelayMs" min="500" step="250" />
+            </label>
+            <label class="field">
+              Daily cap (0 = off)
+              <input type="number" id="dailyCap" min="0" step="10" />
+            </label>
+            <label class="field">
+              Stop after N fails
+              <input type="number" id="maxConsecutiveFailures" min="1" step="1" />
+            </label>
+          </div>
+          <p class="hint">
+            Slower pacing is safer. Threads automation is against Meta's ToS and bulk
+            actions carry some account risk — start with a dry run.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Operations</h2>
+          <div id="ops"></div>
+        </section>
+
+        <section class="card job">
+          <h2>Current job</h2>
+          <div id="job-summary" class="muted">Idle.</div>
+          <div class="stats">
+            <div><span id="stat-processed">0</span><small>processed</small></div>
+            <div><span id="stat-failed">0</span><small>failed</small></div>
+          </div>
+          <div class="row gap">
+            <button id="btn-pause" class="btn ghost small" disabled>Pause</button>
+            <button id="btn-resume" class="btn ghost small" disabled>Resume</button>
+            <button id="btn-stop" class="btn danger small" disabled>Stop</button>
+          </div>
+        </section>
+
+        <section class="card log-card">
+          <div class="row between">
+            <h2>Activity</h2>
+            <button id="btn-clear-log" class="btn ghost xsmall">Clear</button>
+          </div>
+          <div id="log" class="log"></div>
+        </section>
+      </aside>
+
+      <!-- Right: live Threads session -->
+      <main id="stage">
+        <div id="stage-bar">
+          <span class="muted small">Live Threads session — log in here</span>
+        </div>
+        <webview
+          id="threads"
+          partition="persist:threads"
+          allowpopups
+          src="https://www.threads.net/"
+        ></webview>
+      </main>
+    </div>
+
+    <script type="module" src="./app.ts"></script>
+  </body>
+</html>
