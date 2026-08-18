@@ -63,13 +63,16 @@ export class Ctx {
     readonly operation: OperationId,
     readonly settings: Settings,
     readonly dryRun: boolean,
-    private logger: (level: LogLevel, message: string, target?: string, dryRun?: boolean) => void
+    private logger: (level: LogLevel, message: string, target?: string, dryRun?: boolean) => void,
+    readonly debug: (message: string) => void = () => {}
   ) {
     this.mouse = new CdpMouse(wc)
     try {
       this.mouse.ensureAttached()
-    } catch {
+      this.debug('CDP debugger attached (real mouse input available)')
+    } catch (err) {
       this.cdpOk = false
+      this.debug(`CDP attach FAILED, falling back to synthetic clicks: ${String(err)}`)
     }
   }
 
@@ -112,16 +115,23 @@ export class Ctx {
 
   /** Click the centre of a rect using CDP, falling back to an in-page click. */
   async clickRect(rect: Rect): Promise<void> {
+    const x = Math.round(rect.x)
+    const y = Math.round(rect.y)
     if (this.cdpOk) {
       try {
         await this.mouse.click(rect.x, rect.y)
+        this.debug(`click(cdp) @ ${x},${y}`)
         return
-      } catch {
+      } catch (err) {
         this.cdpOk = false
+        this.debug(`click(cdp) FAILED @ ${x},${y}: ${String(err)} — using fallback`)
       }
     }
     // Fallback: dispatch a click at coordinates from within the page.
-    await this.js(`(function(){var el=document.elementFromPoint(${Math.round(rect.x)},${Math.round(rect.y)});if(el)el.click();})()`)
+    const hit = await this.js<string>(
+      `(function(){var el=document.elementFromPoint(${x},${y});if(!el)return 'none';el.click();return (el.tagName+' '+(el.innerText||'').slice(0,20));})()`
+    )
+    this.debug(`click(fallback) @ ${x},${y} -> ${hit}`)
   }
 
   /** Poll an rt() method returning {ok,rect} until it succeeds or times out. */

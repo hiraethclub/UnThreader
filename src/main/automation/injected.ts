@@ -48,6 +48,28 @@ function runtimeSource(configJson: string): string {
     }
     return null;
   }
+  // Finds an action control (e.g. "Delete") anywhere on the page, preferring the
+  // LAST match — a freshly opened menu/dialog is later in the DOM than page chrome.
+  // Prefers an exact label match, then a substring match.
+  function findActionEl(texts) {
+    var els = clickables(document);
+    var exact = null, loose = null;
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i];
+      if (labelExactAny(e, texts)) exact = e;
+      else if (includesAny(textOf(e), texts) || includesAny(nameOf(e), texts)) loose = e;
+    }
+    return exact || loose;
+  }
+  function labelExactAny(el, texts) {
+    var t = norm(textOf(el));
+    var n = norm(nameOf(el));
+    for (var i = 0; i < texts.length; i++) {
+      var w = norm(texts[i]);
+      if (t === w || n === w) return true;
+    }
+    return false;
+  }
   function topOverlay() {
     // Prefer an open dialog/menu, else the whole document.
     var overlays = Array.prototype.slice.call(
@@ -263,17 +285,27 @@ function runtimeSource(configJson: string): string {
       return { ok: false };
     },
 
-    menuItemRect: function (kind) {
-      var texts = kind === 'delete' ? SEL.deleteMenuItemText : SEL.deleteMenuItemText;
-      var scope = topOverlay() || document;
-      var el = findByText(scope, texts);
+    menuItemRect: function () {
+      // The ⋯ menu may be role-less, so search the whole document and take the
+      // topmost "Delete" control rather than relying on an ARIA overlay role.
+      var el = findActionEl(SEL.deleteMenuItemText);
       return el ? { ok: true, rect: rectOf(el) } : { ok: false };
     },
 
     confirmRect: function () {
-      var scope = topOverlay() || document;
-      var el = findByText(scope, SEL.confirmDeleteText);
+      var el = findActionEl(SEL.confirmDeleteText);
       return el ? { ok: true, rect: rectOf(el) } : { ok: false };
+    },
+
+    // Diagnostic: visible clickable labels currently on the page (for debug log).
+    sampleButtons: function () {
+      var els = clickables(topOverlay() || document);
+      var seen = {}, out = [];
+      for (var i = 0; i < els.length && out.length < 24; i++) {
+        var t = (textOf(els[i]) || nameOf(els[i])).slice(0, 22);
+        if (t && !seen[t]) { seen[t] = 1; out.push(t); }
+      }
+      return out;
     },
 
     detectRateWall: function () {

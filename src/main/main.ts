@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { store } from './store.js'
 import { threadsSession, THREADS_PARTITION } from './session.js'
 import { registerIpc } from './ipc.js'
+import { debugLog } from './debugLog.js'
 import { SELECTORS } from './automation/selectors.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -95,6 +96,20 @@ function buildMenu(): void {
           label: 'UnThreader on GitHub',
           click: () => void shell.openExternal('https://github.com/hiraethclub/UnThreader')
         },
+        {
+          label: 'Open debug log',
+          click: () => {
+            const p = debugLog.getPath()
+            if (p) void shell.openPath(p)
+          }
+        },
+        {
+          label: 'Show debug log in folder',
+          click: () => {
+            const p = debugLog.getPath()
+            if (p) shell.showItemInFolder(p)
+          }
+        },
         { type: 'separator' as const },
         { label: 'About UnThreader', click: openAbout }
       ]
@@ -152,6 +167,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  debugLog.init()
   await store.init()
   session.fromPartition(THREADS_PARTITION).setUserAgent(cleanUserAgent())
 

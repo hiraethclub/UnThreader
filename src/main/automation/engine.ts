@@ -10,6 +10,7 @@ import {
 import { Ctx, sleep, type StepResult } from './context.js'
 import { RateLimiter } from './rateLimiter.js'
 import { ACTIONS } from './actions/index.js'
+import { debugLog } from '../debugLog.js'
 
 interface EngineDeps {
   getGuest: () => WebContents | null
@@ -83,8 +84,19 @@ export class AutomationEngine {
     }
     this.emitStateNow()
 
-    const ctx = new Ctx(guest, operation, settings, settings.dryRun, (level, message, target, dryRun) =>
-      this.log(level, message, target, dryRun)
+    debugLog.header(
+      `JOB ${operation} dryRun=${settings.dryRun} limit=${settings.limitPerRun} ` +
+        `delay=${settings.minDelayMs}-${settings.maxDelayMs}ms`
+    )
+    this.log('info', `Debug log: ${debugLog.getPath()}`)
+
+    const ctx = new Ctx(
+      guest,
+      operation,
+      settings,
+      settings.dryRun,
+      (level, message, target, dryRun) => this.log(level, message, target, dryRun),
+      (message) => debugLog.line(`[${operation}] ${message}`)
     )
 
     let consecutiveFailures = 0
@@ -112,6 +124,7 @@ export class AutomationEngine {
       }
 
       await module.navigate(ctx)
+      ctx.debug(`navigated; url=${guest.getURL()}`)
 
       // Main work loop.
       // eslint-disable-next-line no-constant-condition
