@@ -121,6 +121,26 @@ function runtimeSource(configJson: string): string {
     if (a) return a.getAttribute('href').replace(/^\\//, '');
     return null;
   }
+  // From a row's action button, climb to the enclosing row and read its @handle.
+  function rowHandleFor(btn) {
+    var node = btn;
+    for (var k = 0; k < 8 && node; k++) {
+      var a = node.querySelector && node.querySelector('a[href^="/@"]');
+      if (a) {
+        var m = (a.getAttribute('href') || '').match(/^\\/@([^\\/?#]+)/);
+        if (m) return m[1];
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+  // A row's follow-state / remove button: matches the action text but NOT the
+  // "<word> <count>" tab label (which contains a digit).
+  function isRowActionBtn(b, texts) {
+    var t = norm(textOf(b));
+    if (/[0-9]/.test(t)) return false;
+    return includesAny(t, texts) || includesAny(norm(nameOf(b)), texts);
+  }
 
   // Finds Threads' own "Profile" navigation control (left rail). Clicking it
   // routes to the logged-in user's OWN profile, so it is our source of truth for
@@ -323,20 +343,28 @@ function runtimeSource(configJson: string): string {
       return pick ? { ok: true, rect: rectOf(pick) } : { ok: false };
     },
 
-    // Rect of the Followers/Following tab inside the open connections modal.
+    // Rect of the Followers/Following tab inside the open connections modal. The
+    // tab reads like "following 118" (word + count), so we find the smallest
+    // visible element whose only letters spell the word and which contains a
+    // number — this ignores element type and the plain "Following" row buttons.
     connectionsTabRect: function (tab) {
-      var dialog = connScope();
-      if (!dialog || dialog === document) return { ok: false };
-      var texts = tab === 'followers' ? SEL.followersTabText : SEL.followingTabText;
-      var tabs = Array.prototype.slice.call(
-        dialog.querySelectorAll('[role="tab"],a,button,[role="button"]')
-      ).filter(isVisible);
-      for (var i = 0; i < tabs.length; i++) {
-        if (labelExact(tabs[i], texts) || includesAny(textOf(tabs[i]), texts)) {
-          return { ok: true, rect: rectOf(tabs[i]) };
-        }
+      var dialog = connectionsDialogEl();
+      if (!dialog) return { ok: false };
+      var word = tab === 'followers' ? 'followers' : 'following';
+      var all = dialog.querySelectorAll('*');
+      var best = null, bestArea = Infinity;
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (!isVisible(el)) continue;
+        var t = norm(el.innerText || '');
+        if (t.length > 24) continue;
+        if (t.indexOf(word) === -1 || !/[0-9]/.test(t)) continue;
+        if (t.replace(/[^a-z]/g, '') !== word) continue;
+        var r = el.getBoundingClientRect();
+        var area = r.width * r.height;
+        if (area > 0 && area < bestArea) { bestArea = area; best = el; }
       }
-      return { ok: false };
+      return best ? { ok: true, rect: rectOf(best) } : { ok: false };
     },
 
     // True once the connections modal is actually open.
@@ -366,9 +394,8 @@ function runtimeSource(configJson: string): string {
       var btns = clickables(dialog);
       for (var i = 0; i < btns.length; i++) {
         var b = btns[i];
-        if (!includesAny(textOf(b), texts)) continue;
-        var container = b.closest('div');
-        var id = (container && handleIn(container)) || null;
+        if (!isRowActionBtn(b, texts)) continue;
+        var id = rowHandleFor(b);
         if (this._isHandled(b, id)) continue;
         this._markHandled(b, id);
         return { ok: true, id: id || ('row#' + i), rect: rectOf(b) };
@@ -383,9 +410,8 @@ function runtimeSource(configJson: string): string {
       var btns = clickables(dialog);
       for (var i = 0; i < btns.length; i++) {
         var b = btns[i];
-        if (!includesAny(textOf(b), texts)) continue;
-        var container = b.closest('div');
-        var id = (container && handleIn(container)) || null;
+        if (!isRowActionBtn(b, texts)) continue;
+        var id = rowHandleFor(b);
         if (this._isHandled(b, id)) continue;
         this._markHandled(b, id);
         return { ok: true, id: id || ('row#' + i) };
