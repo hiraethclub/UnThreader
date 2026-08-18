@@ -3,15 +3,14 @@ import { Ctx, sleep } from '../context.js'
 const rand = (base: number, spread: number) => base + Math.random() * spread
 
 /**
- * Scrolls the feed or dialog to load more items and decides whether the list is
- * exhausted. Uses a "stall counter": after several scrolls with no growth in the
- * scroll height, we conclude there is nothing more to load.
+ * Scrolls the feed to load more items and decides whether the list is exhausted.
+ * Uses a "stall counter": after several scrolls with no growth in the scroll
+ * height + loaded-post count, we conclude there is nothing more to load.
  */
-export async function loadMoreOrDone(ctx: Ctx, kind: 'feed' | 'dialog'): Promise<{ done: boolean }> {
-  const method = kind === 'dialog' ? 'scrollDialog' : 'scrollFeed'
-  const before = await ctx.rt<{ height: number }>(method).then((r) => r?.height ?? 0)
+export async function loadMoreOrDone(ctx: Ctx): Promise<{ done: boolean }> {
+  const before = await ctx.rt<{ height: number }>('scrollFeed').then((r) => r?.height ?? 0)
   await sleep(rand(1300, 900))
-  const after = await ctx.rt<number>('measure', kind === 'dialog' ? 'dialog' : 'feed')
+  const after = await ctx.rt<number>('measure', 'feed')
   const grew = (after ?? 0) > before
 
   if (grew) {
@@ -40,13 +39,13 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
     async step(ctx: Ctx) {
       if (ctx.dryRun) {
         const m = await ctx.rt('markFirstItem')
-        if (!m.ok) return await endOrScroll(ctx, 'feed')
+        if (!m.ok) return await endOrScroll(ctx)
         ctx.log('action', `Would delete ${noun}`, m.id)
         return { acted: true, skipped: true, target: m.id }
       }
 
       const menu = await ctx.rt('firstItemMenuRect')
-      if (!menu.ok || !menu.rect) return await endOrScroll(ctx, 'feed')
+      if (!menu.ok || !menu.rect) return await endOrScroll(ctx)
 
       await ctx.clickRect(menu.rect)
       const del = await ctx.pollRect('menuItemRect', 'delete', 12, 250)
@@ -66,86 +65,7 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
   }
 }
 
-/**
- * Shared flow for the follow / followers dialogs: open the dialog, then for each
- * row click its action button (Following→Unfollow, or Remove) and confirm.
- */
-export function makeFollowModule(id: 'unfollowAll' | 'removeFollowers', kind: 'unfollow' | 'remove') {
-  const dialog = kind === 'remove' ? 'followers' : 'following'
-  const verb = kind === 'remove' ? 'Removed follower' : 'Unfollowed'
-  const wouldVerb = kind === 'remove' ? 'Would remove follower' : 'Would unfollow'
-
-  // When no actionable row is found, log the dialog's actual button labels once
-  // so the correct selectors can be identified. Guarded to fire a single time.
-  async function diagnose(ctx: Ctx): Promise<void> {
-    if (ctx.state.diag || ctx.state.stall) return
-    ctx.state.diag = 1
-    const sample = (await ctx.rt<string[]>('dialogButtonSample').catch(() => [])) as string[]
-    if (Array.isArray(sample) && sample.length) {
-      ctx.log('warn', `No "${kind}" button matched. Dialog buttons seen: ${sample.join(' | ')}`)
-    } else {
-      ctx.log('warn', `No "${kind}" button matched, and the dialog appears empty.`)
-    }
-  }
-
-  return {
-    id,
-    async navigate(ctx: Ctx): Promise<void> {
-      await ctx.rt('resetMarks')
-      // Open the connections modal with a REAL click (synthetic clicks don't open it).
-      const link = await ctx.pollRect('connectionsLinkRect', undefined, 6, 300)
-      if (!link) {
-        ctx.log('warn', 'Could not find the followers count on your profile.')
-        return
-      }
-      await ctx.clickRect(link.rect)
-      // Wait for the modal to actually appear.
-      let open = false
-      for (let i = 0; i < 10 && !open; i++) {
-        open = await ctx.rt<boolean>('connectionsOpen').catch(() => false)
-        if (!open) await sleep(400)
-      }
-      if (!open) {
-        ctx.log('warn', 'Clicked the followers count but the list dialog did not open.')
-        return
-      }
-      // Switch to the correct tab (Following for unfollow, Followers for remove).
-      const tab = await ctx.pollRect('connectionsTabRect', dialog, 6, 300)
-      if (tab) await ctx.clickRect(tab.rect)
-      else ctx.log('info', `No separate "${dialog}" tab found; using the open list as-is.`)
-      await sleep(rand(1300, 800))
-      ctx.state.stall = 0
-    },
-    async step(ctx: Ctx) {
-      if (ctx.dryRun) {
-        const m = await ctx.rt('markFirstRow', kind)
-        if (!m.ok) {
-          await diagnose(ctx)
-          return await endOrScroll(ctx, 'dialog')
-        }
-        ctx.log('action', wouldVerb, m.id)
-        return { acted: true, skipped: true, target: m.id }
-      }
-
-      const row = await ctx.rt('firstRowActionRect', kind)
-      if (!row.ok || !row.rect) {
-        await diagnose(ctx)
-        return await endOrScroll(ctx, 'dialog')
-      }
-
-      await ctx.clickRect(row.rect)
-      // A confirm sheet appears for unfollow/remove on the web UI.
-      const confirm = await ctx.pollRect('confirmRect', kind, 8, 250)
-      if (confirm) await ctx.clickRect(confirm.rect)
-      await sleep(rand(900, 700))
-      ctx.log('success', verb, row.id)
-      ctx.state.stall = 0
-      return { acted: true, target: row.id }
-    }
-  }
-}
-
-async function endOrScroll(ctx: Ctx, kind: 'feed' | 'dialog') {
-  const { done } = await loadMoreOrDone(ctx, kind)
+async function endOrScroll(ctx: Ctx) {
+  const { done } = await loadMoreOrDone(ctx)
   return done ? { done: true } : {}
 }

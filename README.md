@@ -5,11 +5,14 @@ A cross-platform **desktop app** (Windows, Linux, macOS) that bulk-cleans **your
 
 - 🗑️ Delete **all your posts**
 - 💬 Delete **all your replies**
-- 👤 **Unfollow everyone** you follow *(optional)*
-- 🚫 **Remove all your followers** *(optional)*
 
 It works by driving the real Threads **web** interface with your own logged-in session —
 the same buttons you'd click by hand, done automatically — inside an embedded browser.
+
+> **Note on follows/followers:** earlier versions also attempted to unfollow everyone
+> and remove followers. Threads' web UI has no bulk/removal controls for these (there is
+> no "Remove" action on the followers list at all), so those features were dropped rather
+> than shipped half-working.
 
 > [!WARNING]
 > **Read this first.**
@@ -23,9 +26,8 @@ the same buttons you'd click by hand, done automatically — inside an embedded 
 ## Why a desktop app instead of the official API?
 
 Meta's official Threads API can delete posts/replies but is capped at **100 deletions per
-24h**, requires App Review to ship, and has **no follower or follow/unfollow endpoints at
-all**. Driving the web UI with your own session is the only approach that can do all four
-operations without server infrastructure or Meta approval.
+24h** and requires App Review to ship. Driving the web UI with your own session removes the
+cap and the approval step, and needs no server infrastructure.
 
 ## How it works
 
@@ -63,7 +65,7 @@ operations without server infrastructure or Meta approval.
 | `src/main/automation/cdpInput.ts` | Human-like mouse clicks via Chrome DevTools Protocol |
 | `src/main/automation/injected.ts` | The in-page DOM library run inside Threads |
 | **`src/main/automation/selectors.ts`** | **Every Threads DOM anchor — the one file to update when Threads changes its UI** |
-| `src/main/automation/actions/` | The four operations |
+| `src/main/automation/actions/` | The delete-posts / delete-replies operations |
 | `src/renderer/` | Control-panel UI |
 
 ### When Threads changes its layout

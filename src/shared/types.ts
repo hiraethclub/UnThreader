@@ -1,17 +1,11 @@
 // Shared types used across the main process, preload bridge and renderer.
 // Keep this file free of any Node or DOM specific imports so both sides compile.
 
-export type OperationId =
-  | 'deletePosts'
-  | 'deleteReplies'
-  | 'unfollowAll'
-  | 'removeFollowers'
+export type OperationId = 'deletePosts' | 'deleteReplies'
 
 export const OPERATIONS: { id: OperationId; label: string; destructive: boolean; confirmWord: string }[] = [
   { id: 'deletePosts', label: 'Delete all posts', destructive: true, confirmWord: 'DELETE' },
-  { id: 'deleteReplies', label: 'Delete all replies', destructive: true, confirmWord: 'DELETE' },
-  { id: 'unfollowAll', label: 'Unfollow everyone', destructive: true, confirmWord: 'PURGE' },
-  { id: 'removeFollowers', label: 'Remove all followers', destructive: true, confirmWord: 'PURGE' }
+  { id: 'deleteReplies', label: 'Delete all replies', destructive: true, confirmWord: 'DELETE' }
 ]
 
 /** User-tunable pacing / safety settings, persisted to disk. */

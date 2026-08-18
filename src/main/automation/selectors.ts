@@ -24,21 +24,6 @@ export interface SelectorConfig {
   editProfileText: string[]
   /** Profile tab accessible names. */
   tabs: { posts: string[]; replies: string[] }
-  /** Text contained in the link that opens the "following" list. */
-  followingLinkText: string[]
-  /** Text contained in the link that opens the "followers" list. */
-  followersLinkText: string[]
-  /** Tab labels inside the connections dialog. */
-  followingTabText: string[]
-  followersTabText: string[]
-  /** Button text on a following-row (click to unfollow). */
-  followingButtonText: string[]
-  /** Confirmation button text for an unfollow. */
-  confirmUnfollowText: string[]
-  /** Button text on a follower-row (click to remove). */
-  removeButtonText: string[]
-  /** Confirmation button text for removing a follower. */
-  confirmRemoveText: string[]
   /** Candidate container selectors that wrap a single post/reply. */
   postContainers: string[]
   /** Phrases that indicate Threads has rate-limited or blocked the account. */
@@ -58,14 +43,6 @@ export const SELECTORS: SelectorConfig = {
     posts: ['Threads'],
     replies: ['Replies']
   },
-  followingLinkText: ['following'],
-  followersLinkText: ['followers'],
-  followingTabText: ['Following'],
-  followersTabText: ['Followers'],
-  followingButtonText: ['Following'],
-  confirmUnfollowText: ['Unfollow'],
-  removeButtonText: ['Remove'],
-  confirmRemoveText: ['Remove'],
   postContainers: ['div[data-pressable-container="true"]', 'div[role="article"]', 'article'],
   rateWallText: [
     'try again later',

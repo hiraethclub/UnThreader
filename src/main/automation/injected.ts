@@ -55,30 +55,6 @@ function runtimeSource(configJson: string): string {
     ).filter(isVisible);
     return overlays.length ? overlays[overlays.length - 1] : null;
   }
-  // The connections modal (followers/following). Threads' modal may not carry
-  // role="dialog", so as a fallback we find the smallest visible container that
-  // holds BOTH "followers" and "following" text plus profile-link rows — the
-  // profile page itself only shows "followers", so this won't match it.
-  function connectionsDialogEl() {
-    var byRole = Array.prototype.slice.call(document.querySelectorAll('[role="dialog"]')).filter(isVisible);
-    if (byRole.length) return byRole[byRole.length - 1];
-    var best = null, bestArea = Infinity;
-    var divs = document.querySelectorAll('div');
-    for (var i = 0; i < divs.length; i++) {
-      var el = divs[i];
-      if (!isVisible(el)) continue;
-      var t = norm(el.innerText || '');
-      if (t.indexOf('follower') === -1 || t.indexOf('following') === -1) continue;
-      if (el.querySelectorAll('a[href^="/@"]').length < 2) continue;
-      var r = el.getBoundingClientRect();
-      var area = r.width * r.height;
-      if (area > 0 && area < bestArea) { bestArea = area; best = el; }
-    }
-    return best;
-  }
-  function connScope() {
-    return connectionsDialogEl() || topOverlay() || document;
-  }
   function postContainers() {
     for (var i = 0; i < SEL.postContainers.length; i++) {
       var found = Array.prototype.slice.call(document.querySelectorAll(SEL.postContainers[i])).filter(isVisible);
@@ -115,31 +91,6 @@ function runtimeSource(configJson: string): string {
     var t = el.querySelector('time');
     if (t && t.parentElement && t.parentElement.getAttribute) return t.parentElement.getAttribute('href') || null;
     return null;
-  }
-  function handleIn(el) {
-    var a = el.querySelector('a[href^="/@"]');
-    if (a) return a.getAttribute('href').replace(/^\\//, '');
-    return null;
-  }
-  // From a row's action button, climb to the enclosing row and read its @handle.
-  function rowHandleFor(btn) {
-    var node = btn;
-    for (var k = 0; k < 8 && node; k++) {
-      var a = node.querySelector && node.querySelector('a[href^="/@"]');
-      if (a) {
-        var m = (a.getAttribute('href') || '').match(/^\\/@([^\\/?#]+)/);
-        if (m) return m[1];
-      }
-      node = node.parentElement;
-    }
-    return null;
-  }
-  // A row's follow-state / remove button: matches the action text but NOT the
-  // "<word> <count>" tab label (which contains a digit).
-  function isRowActionBtn(b, texts) {
-    var t = norm(textOf(b));
-    if (/[0-9]/.test(t)) return false;
-    return includesAny(t, texts) || includesAny(norm(nameOf(b)), texts);
   }
 
   // Finds Threads' own "Profile" navigation control (left rail). Clicking it
@@ -319,104 +270,10 @@ function runtimeSource(configJson: string): string {
       return el ? { ok: true, rect: rectOf(el) } : { ok: false };
     },
 
-    confirmRect: function (kind) {
-      var map = { delete: SEL.confirmDeleteText, unfollow: SEL.confirmUnfollowText, remove: SEL.confirmRemoveText };
+    confirmRect: function () {
       var scope = topOverlay() || document;
-      var el = findByText(scope, map[kind] || SEL.confirmDeleteText);
+      var el = findByText(scope, SEL.confirmDeleteText);
       return el ? { ok: true, rect: rectOf(el) } : { ok: false };
-    },
-
-    // Rect of the profile header's "X followers" count (opens the connections
-    // modal). Returned as a rect so the caller performs a REAL mouse click via
-    // CDP — a synthetic .click() does not open the modal.
-    connectionsLinkRect: function () {
-      var links = clickables(document);
-      var pick = null;
-      for (var i = 0; i < links.length; i++) {
-        if (includesAny(textOf(links[i]), SEL.followersLinkText)) { pick = links[i]; break; }
-      }
-      if (!pick) {
-        for (var j = 0; j < links.length; j++) {
-          if (includesAny(textOf(links[j]), SEL.followingLinkText)) { pick = links[j]; break; }
-        }
-      }
-      return pick ? { ok: true, rect: rectOf(pick) } : { ok: false };
-    },
-
-    // Rect of the Followers/Following tab inside the open connections modal. The
-    // tab reads like "following 118" (word + count), so we find the smallest
-    // visible element whose only letters spell the word and which contains a
-    // number — this ignores element type and the plain "Following" row buttons.
-    connectionsTabRect: function (tab) {
-      var dialog = connectionsDialogEl();
-      if (!dialog) return { ok: false };
-      var word = tab === 'followers' ? 'followers' : 'following';
-      var all = dialog.querySelectorAll('*');
-      var best = null, bestArea = Infinity;
-      for (var i = 0; i < all.length; i++) {
-        var el = all[i];
-        if (!isVisible(el)) continue;
-        var t = norm(el.innerText || '');
-        if (t.length > 24) continue;
-        if (t.indexOf(word) === -1 || !/[0-9]/.test(t)) continue;
-        if (t.replace(/[^a-z]/g, '') !== word) continue;
-        var r = el.getBoundingClientRect();
-        var area = r.width * r.height;
-        if (area > 0 && area < bestArea) { bestArea = area; best = el; }
-      }
-      return best ? { ok: true, rect: rectOf(best) } : { ok: false };
-    },
-
-    // True once the connections modal is actually open.
-    connectionsOpen: function () {
-      return !!connectionsDialogEl();
-    },
-
-    // Debug helper: sample of the distinct clickable labels inside the connections
-    // modal (or page), so we can see what Threads renders when matching fails.
-    dialogButtonSample: function () {
-      var dialog = connScope();
-      var els = clickables(dialog === document ? document : dialog);
-      var seen = {};
-      var out = [];
-      for (var i = 0; i < els.length && out.length < 18; i++) {
-        var t = (textOf(els[i]) || nameOf(els[i])).slice(0, 24);
-        if (t && !seen[t]) { seen[t] = 1; out.push(t); }
-      }
-      return out;
-    },
-
-    // First actionable row inside the open follow/followers dialog.
-    firstRowActionRect: function (kind) {
-      var dialog = connectionsDialogEl();
-      if (!dialog) return { ok: false };
-      var texts = kind === 'remove' ? SEL.removeButtonText : SEL.followingButtonText;
-      var btns = clickables(dialog);
-      for (var i = 0; i < btns.length; i++) {
-        var b = btns[i];
-        if (!isRowActionBtn(b, texts)) continue;
-        var id = rowHandleFor(b);
-        if (this._isHandled(b, id)) continue;
-        this._markHandled(b, id);
-        return { ok: true, id: id || ('row#' + i), rect: rectOf(b) };
-      }
-      return { ok: false };
-    },
-
-    markFirstRow: function (kind) {
-      var dialog = connectionsDialogEl();
-      if (!dialog) return { ok: false };
-      var texts = kind === 'remove' ? SEL.removeButtonText : SEL.followingButtonText;
-      var btns = clickables(dialog);
-      for (var i = 0; i < btns.length; i++) {
-        var b = btns[i];
-        if (!isRowActionBtn(b, texts)) continue;
-        var id = rowHandleFor(b);
-        if (this._isHandled(b, id)) continue;
-        this._markHandled(b, id);
-        return { ok: true, id: id || ('row#' + i) };
-      }
-      return { ok: false };
     },
 
     detectRateWall: function () {
@@ -427,20 +284,10 @@ function runtimeSource(configJson: string): string {
       return null;
     },
 
-    // Returns a progress signal for the feed/dialog: the scroller's scrollHeight
-    // plus the number of loaded posts, so growth is detected whether Threads
-    // grows the container or swaps in new virtualized rows.
-    measure: function (kind) {
-      if (kind === 'dialog') {
-        var dialog = connectionsDialogEl();
-        if (!dialog) return 0;
-        var nodes = dialog.querySelectorAll('*');
-        var rowCount = dialog.querySelectorAll('a[href^="/@"]').length;
-        for (var i = 0; i < nodes.length; i++) {
-          if (nodes[i].scrollHeight > nodes[i].clientHeight + 20) return nodes[i].scrollHeight + rowCount;
-        }
-        return dialog.scrollHeight + rowCount;
-      }
+    // Returns a progress signal for the feed: the scroller's scrollHeight plus the
+    // number of loaded posts, so growth is detected whether Threads grows the
+    // container or swaps in new virtualized rows.
+    measure: function () {
       var sc = feedScroller();
       return sc.scrollHeight + postContainers().length;
     },
@@ -453,24 +300,6 @@ function runtimeSource(configJson: string): string {
       if (items.length) { try { items[items.length - 1].scrollIntoView({ block: 'end' }); } catch (e) {} }
       if (isDocScroller(sc)) window.scrollBy(0, Math.round(window.innerHeight * 0.9));
       else sc.scrollTop = sc.scrollTop + Math.round(sc.clientHeight * 0.9);
-      return { height: before };
-    },
-
-    scrollDialog: function () {
-      var dialog = connectionsDialogEl();
-      if (!dialog) return { height: 0 };
-      var rowCount = dialog.querySelectorAll('a[href^="/@"]').length;
-      // Find the scrollable descendant.
-      var nodes = dialog.querySelectorAll('*');
-      var scroller = dialog;
-      for (var i = 0; i < nodes.length; i++) {
-        if (nodes[i].scrollHeight > nodes[i].clientHeight + 20) { scroller = nodes[i]; break; }
-      }
-      var before = scroller.scrollHeight + rowCount;
-      // Scroll the container and pull the last row into view to trigger loading.
-      var rows = dialog.querySelectorAll('a[href^="/@"]');
-      if (rows.length) { try { rows[rows.length - 1].scrollIntoView({ block: 'end' }); } catch (e) {} }
-      scroller.scrollTop = scroller.scrollTop + Math.round(scroller.clientHeight * 0.9);
       return { height: before };
     },
 
