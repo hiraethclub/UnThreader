@@ -77,14 +77,30 @@ export class Ctx {
     this.logger(level, message, target, this.dryRun)
   }
 
-  async js<T = unknown>(script: string): Promise<T> {
-    return (await this.wc.executeJavaScript(script, true)) as T
+  /**
+   * Execute a script in the guest, retrying transient failures. When Threads
+   * performs an SPA navigation the JS context is briefly torn down and
+   * executeJavaScript rejects with "Script failed to execute"; that is not a real
+   * error, so we wait and retry a few times before giving up.
+   */
+  async js<T = unknown>(script: string, retries = 4): Promise<T> {
+    let lastErr: unknown
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return (await this.wc.executeJavaScript(script, true)) as T
+      } catch (err) {
+        lastErr = err
+        await sleep(350)
+      }
+    }
+    throw lastErr
   }
 
   /** Ensure the in-page runtime is present (idempotent). */
   async ensureRuntime(): Promise<void> {
-    const present = await this.js<boolean>('!!(window.__unthreader && window.__unthreader.__v===1)')
-    if (!present) await this.js(INJECTED_RUNTIME)
+    // INJECTED_RUNTIME is idempotent (early-returns if already loaded), so simply
+    // (re)running it is safe and also self-heals after a navigation reset it.
+    await this.js(INJECTED_RUNTIME)
   }
 
   /** Call a window.__unthreader method with a single optional string arg. */

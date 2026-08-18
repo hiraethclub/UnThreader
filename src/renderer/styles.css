@@ -17,7 +17,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
 body { background: var(--bg); color: var(--text); font-size: 14px; }
 
 #app { display: flex; height: 100vh; overflow: hidden; }
@@ -26,12 +26,14 @@ body { background: var(--bg); color: var(--text); font-size: 14px; }
 .pane {
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--panel);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+.card { min-width: 0; }
 #panel-left {
   width: 400px;
   min-width: 360px;
@@ -94,8 +96,9 @@ body { background: var(--bg); color: var(--text); font-size: 14px; }
 
 /* Fields */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-.field { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; color: var(--muted); min-width: 0; }
 .field input {
+  width: 100%; min-width: 0; max-width: 100%;
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   border-radius: 8px; padding: 7px 9px; font-size: 13px;
 }
@@ -138,12 +141,14 @@ body { background: var(--bg); color: var(--text); font-size: 14px; }
 /* Log */
 .log-card { flex: 1; min-height: 160px; display: flex; flex-direction: column; }
 .log {
-  flex: 1; overflow-y: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11.5px; line-height: 1.6; background: var(--bg);
   border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-height: 120px;
 }
-.log .l { display: flex; gap: 8px; padding: 1px 0; }
-.log .l time { color: #56566a; flex: none; }
+.log .l { display: flex; gap: 8px; padding: 1px 0; min-width: 0; }
+.log .l time { color: #56566a; flex: none; white-space: nowrap; }
+.log .l span { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .log .l.info span { color: var(--text); }
 .log .l.action span { color: var(--accent-2); }
 .log .l.skip span { color: var(--muted); }

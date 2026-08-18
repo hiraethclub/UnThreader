@@ -41,13 +41,23 @@ export function registerIpc(panel: WebContents): void {
     const op = OPERATIONS.find((o) => o.id === req.operation)
     if (!op) throw new Error(`Unknown operation: ${req.operation}`)
 
+    if (engine!.isRunning()) throw new Error('A job is already running.')
+
     const settings = store.getSettings()
     // Destructive operations require the typed confirmation word unless dry-run.
     if (op.destructive && !settings.dryRun && req.confirm !== op.confirmWord) {
       throw new Error(`Type "${op.confirmWord}" to confirm this action.`)
     }
-    // Fire and forget; progress is delivered via events.
-    void engine!.start(req.operation)
+    // Fire and forget; progress is delivered via events. Surface async failures
+    // to the log instead of leaving an unhandled rejection.
+    engine!.start(req.operation).catch((err) => {
+      send(IPC.onLog, {
+        ts: Date.now(),
+        level: 'error',
+        operation: req.operation,
+        message: err instanceof Error ? err.message : String(err)
+      })
+    })
     return { started: true }
   })
 

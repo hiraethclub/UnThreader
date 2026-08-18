@@ -99,7 +99,7 @@ export class AutomationEngine {
 
       let own = false
       for (let i = 0; i < 10 && !own; i++) {
-        own = await ctx.rt<boolean>('isOwnProfile')
+        own = await ctx.rt<boolean>('isOwnProfile').catch(() => false)
         if (!own) await sleep(500)
       }
       if (!own) {

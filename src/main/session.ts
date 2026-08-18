@@ -52,7 +52,15 @@ class ThreadsSession {
     // INJECTED_RUNTIME is an idempotent IIFE (it early-returns if already present),
     // so we can just run it. It must NOT be wrapped in an expression: it ends in a
     // statement/semicolon and would be a syntax error inside e.g. a ternary.
-    await wc.executeJavaScript(INJECTED_RUNTIME, true)
+    // Retry transient "Script failed to execute" during SPA navigations.
+    for (let i = 0; i < 4; i++) {
+      try {
+        await wc.executeJavaScript(INJECTED_RUNTIME, true)
+        return
+      } catch {
+        await new Promise((r) => setTimeout(r, 350))
+      }
+    }
   }
 
   private settle(ms = 1500): Promise<void> {
