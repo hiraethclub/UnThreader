@@ -94,6 +94,15 @@ function runtimeSource(configJson: string): string {
     }
     return false;
   }
+  // The @handle of a post/reply container's author (the first profile link in it).
+  function containerAuthor(el) {
+    var a = el.querySelector('a[href^="/@"]');
+    if (a) {
+      var m = (a.getAttribute('href') || '').match(/^\\/@([^\\/?#]+)/);
+      if (m) return m[1];
+    }
+    return null;
+  }
   function topOverlay() {
     // Prefer an open dialog/menu, else the whole document.
     var overlays = Array.prototype.slice.call(
@@ -272,6 +281,23 @@ function runtimeSource(configJson: string): string {
       if (id) this._seen[id] = 1;
       else el.setAttribute('data-unthreader-skip', '1');
     },
+    // A container we must NOT act on because it isn't the logged-in user's own
+    // content (e.g. the parent post shown as context on the Replies tab).
+    _isForeign: function (el) {
+      if (!this._me) return false;
+      var au = containerAuthor(el);
+      return !!au && norm(au) !== norm(this._me);
+    },
+
+    // Diagnostic: author + permalink of the first loaded containers.
+    containerReport: function () {
+      var items = postContainers();
+      var out = [];
+      for (var i = 0; i < items.length && out.length < 12; i++) {
+        out.push((containerAuthor(items[i]) || '?') + ' ' + (permalinkIn(items[i]) || 'no-permalink'));
+      }
+      return out;
+    },
 
     // Returns the "..." menu button rect for the first not-yet-handled post.
     firstItemMenuRect: function () {
@@ -280,6 +306,7 @@ function runtimeSource(configJson: string): string {
         var el = items[i];
         var id = permalinkIn(el);
         if (this._isHandled(el, id)) continue;
+        if (this._isForeign(el)) { this._markHandled(el, id); continue; }
         var btn = null;
         var cand = el.querySelectorAll('[aria-label],[role="button"],button,svg');
         for (var j = 0; j < cand.length; j++) {
@@ -303,6 +330,7 @@ function runtimeSource(configJson: string): string {
         var el = items[i];
         var id = permalinkIn(el);
         if (this._isHandled(el, id)) continue;
+        if (this._isForeign(el)) { this._markHandled(el, id); continue; }
         this._markHandled(el, id);
         return { ok: true, id: id || ('post#' + i) };
       }

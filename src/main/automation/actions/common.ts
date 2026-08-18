@@ -40,6 +40,8 @@ export function makeDeleteModule(id: 'deletePosts' | 'deleteReplies', tab: 'post
       await ctx.rt('resetMarks')
       await ctx.rt('activateTab', tab)
       await sleep(rand(1200, 800))
+      const containers = (await ctx.rt<string[]>('containerReport').catch(() => [])) as string[]
+      ctx.debug(`containers on ${tab} tab: ${Array.isArray(containers) ? containers.join(' ; ') : ''}`)
       ctx.state.stall = 0
     },
     async step(ctx: Ctx) {
