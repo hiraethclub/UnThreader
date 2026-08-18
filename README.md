@@ -9,6 +9,8 @@ A cross-platform **desktop app** (Windows, Linux, macOS) that bulk-cleans **your
 It works by driving the real Threads **web** interface with your own logged-in session —
 the same buttons you'd click by hand, done automatically — inside an embedded browser.
 
+![UnThreader — control panel on the left, live Threads session in the centre, job progress and activity log on the right](docs/screenshot.png)
+
 > **Note on follows/followers:** earlier versions also attempted to unfollow everyone
 > and remove followers. Threads' web UI has no bulk/removal controls for these (there is
 > no "Remove" action on the followers list at all), so those features were dropped rather
