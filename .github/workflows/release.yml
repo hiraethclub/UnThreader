@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -29,9 +29,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run check:injected
 
-      # Build the app and publish this OS's installers to the GitHub Release for
-      # the tag. electron-builder creates/updates the release and uploads assets.
-      - name: Build and publish
+      # Compile main/preload/renderer into out/ before packaging.
+      - run: npm run build
+
+      # Package this OS's installers and publish them to the GitHub Release for
+      # the tag/version. electron-builder creates/updates the release.
+      - name: Package and publish
         run: npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
