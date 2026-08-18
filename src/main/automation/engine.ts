@@ -16,6 +16,8 @@ interface EngineDeps {
   getSettings: () => Settings
   emitState: (state: JobState) => void
   emitLog: (entry: LogEntry) => void
+  /** Navigate the guest to the logged-in user's own profile and wait for load. */
+  ensureProfile: () => Promise<void>
 }
 
 /**
@@ -89,8 +91,26 @@ export class AutomationEngine {
     let successStreak = 0
 
     try {
-      await ctx.ensureRuntime()
       this.log('info', `Starting: ${operation}${settings.dryRun ? ' (dry run)' : ''}`)
+      // Always operate from the user's own profile — never the home feed.
+      this.log('info', 'Navigating to your profile…')
+      await this.deps.ensureProfile()
+      await ctx.ensureRuntime()
+
+      let own = false
+      for (let i = 0; i < 10 && !own; i++) {
+        own = await ctx.rt<boolean>('isOwnProfile')
+        if (!own) await sleep(500)
+      }
+      if (!own) {
+        this.log(
+          'error',
+          'Could not confirm your own profile is open. Log in and open your profile, then retry. Aborting for safety.'
+        )
+        this.setState({ status: 'error', message: 'Not on your profile — aborted' })
+        return
+      }
+
       await module.navigate(ctx)
 
       // Main work loop.

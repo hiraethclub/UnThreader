@@ -92,6 +92,21 @@ function runtimeSource(configJson: string): string {
       return { loggedIn: loggedIn, username: handle };
     },
 
+    // The @handle in the current URL, or null if not on a profile page.
+    currentHandle: function () {
+      var m = location.pathname.match(/^\\/@([^\\/]+)/);
+      return m ? m[1] : null;
+    },
+
+    // True only when the page is the logged-in user's OWN profile. This is the
+    // safety gate that prevents acting on anyone else's content.
+    isOwnProfile: function () {
+      var cur = this.currentHandle();
+      if (!cur) return false;
+      var me = this.getSession().username;
+      return !!me && norm(cur) === norm(me);
+    },
+
     activateTab: function (kind) {
       var texts = kind === 'replies' ? SEL.tabs.replies : SEL.tabs.posts;
       // Tabs are usually role="tab" or plain links under the profile header.

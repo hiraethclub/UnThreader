@@ -66,6 +66,8 @@ class ThreadsSession {
     const user = state.username ?? this.lastUsername
     const url = user ? `${SELECTORS.baseUrl}/@${user}` : SELECTORS.baseUrl
     await wc.loadURL(url)
+    // Let the SPA hydrate the profile before automation inspects the DOM.
+    await new Promise((r) => setTimeout(r, 1500))
   }
 
   private async emit(): Promise<void> {

@@ -26,7 +26,8 @@ export function registerIpc(panel: WebContents): void {
     emitLog: (entry: LogEntry) => {
       store.appendLog(entry)
       send(IPC.onLog, entry)
-    }
+    },
+    ensureProfile: () => threadsSession.navigateProfile()
   })
 
   threadsSession.attachChangeForwarder((s) => send(IPC.onSession, s))
