@@ -40,3 +40,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No code-signing in CI — produce unsigned artifacts.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+  # electron-builder uploads to a DRAFT release; flip it to published once all
+  # platforms have finished uploading their installers.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          tag="v$(node -p "require('./package.json').version")"
+          id=$(gh api repos/${{ github.repository }}/releases --paginate \
+                --jq "[.[] | select(.tag_name==\"$tag\")][0].id")
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "No release found for tag $tag"; exit 1
+          fi
+          gh api -X PATCH repos/${{ github.repository }}/releases/$id \
+            -F draft=false -f name="UnThreader $tag" >/dev/null
+          echo "Published $tag"
