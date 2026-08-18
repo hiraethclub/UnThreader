@@ -282,13 +282,47 @@ function runtimeSource(configJson: string): string {
       return el ? { ok: true, rect: rectOf(el) } : { ok: false };
     },
 
-    openFollowDialog: function (kind) {
-      var texts = kind === 'followers' ? SEL.followersLinkText : SEL.followingLinkText;
+    // Opens the connections dialog from the profile header. Threads exposes only a
+    // "X followers" count (which opens a dialog containing BOTH Followers and
+    // Following tabs), so we click that; we fall back to a "following" link if one
+    // exists.
+    openConnectionsDialog: function () {
       var links = clickables(document);
       for (var i = 0; i < links.length; i++) {
-        if (includesAny(textOf(links[i]), texts)) { links[i].click(); return true; }
+        if (includesAny(textOf(links[i]), SEL.followersLinkText)) { links[i].click(); return true; }
+      }
+      for (var j = 0; j < links.length; j++) {
+        if (includesAny(textOf(links[j]), SEL.followingLinkText)) { links[j].click(); return true; }
       }
       return false;
+    },
+
+    // Selects the Followers/Following tab inside the open connections dialog.
+    selectConnectionsTab: function (tab) {
+      var dialog = topOverlay();
+      if (!dialog) return false;
+      var texts = tab === 'followers' ? SEL.followersTabText : SEL.followingTabText;
+      var tabs = Array.prototype.slice.call(
+        dialog.querySelectorAll('[role="tab"],a,button,[role="button"]')
+      ).filter(isVisible);
+      for (var i = 0; i < tabs.length; i++) {
+        if (labelExact(tabs[i], texts) || includesAny(textOf(tabs[i]), texts)) { tabs[i].click(); return true; }
+      }
+      return false;
+    },
+
+    // Debug helper: sample of the distinct clickable labels inside the dialog, so
+    // we can see what Threads actually renders when row matching fails.
+    dialogButtonSample: function () {
+      var dialog = topOverlay() || document;
+      var els = clickables(dialog);
+      var seen = {};
+      var out = [];
+      for (var i = 0; i < els.length && out.length < 18; i++) {
+        var t = (textOf(els[i]) || nameOf(els[i])).slice(0, 24);
+        if (t && !seen[t]) { seen[t] = 1; out.push(t); }
+      }
+      return out;
     },
 
     // First actionable row inside the open follow/followers dialog.

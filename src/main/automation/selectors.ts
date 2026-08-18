@@ -28,6 +28,9 @@ export interface SelectorConfig {
   followingLinkText: string[]
   /** Text contained in the link that opens the "followers" list. */
   followersLinkText: string[]
+  /** Tab labels inside the connections dialog. */
+  followingTabText: string[]
+  followersTabText: string[]
   /** Button text on a following-row (click to unfollow). */
   followingButtonText: string[]
   /** Confirmation button text for an unfollow. */
@@ -57,6 +60,8 @@ export const SELECTORS: SelectorConfig = {
   },
   followingLinkText: ['following'],
   followersLinkText: ['followers'],
+  followingTabText: ['Following'],
+  followersTabText: ['Followers'],
   followingButtonText: ['Following'],
   confirmUnfollowText: ['Unfollow'],
   removeButtonText: ['Remove'],

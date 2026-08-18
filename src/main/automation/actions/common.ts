@@ -74,25 +74,52 @@ export function makeFollowModule(id: 'unfollowAll' | 'removeFollowers', kind: 'u
   const dialog = kind === 'remove' ? 'followers' : 'following'
   const verb = kind === 'remove' ? 'Removed follower' : 'Unfollowed'
   const wouldVerb = kind === 'remove' ? 'Would remove follower' : 'Would unfollow'
+
+  // When no actionable row is found, log the dialog's actual button labels once
+  // so the correct selectors can be identified. Guarded to fire a single time.
+  async function diagnose(ctx: Ctx): Promise<void> {
+    if (ctx.state.diag || ctx.state.stall) return
+    ctx.state.diag = 1
+    const sample = (await ctx.rt<string[]>('dialogButtonSample').catch(() => [])) as string[]
+    if (Array.isArray(sample) && sample.length) {
+      ctx.log('warn', `No "${kind}" button matched. Dialog buttons seen: ${sample.join(' | ')}`)
+    } else {
+      ctx.log('warn', `No "${kind}" button matched, and the dialog appears empty.`)
+    }
+  }
+
   return {
     id,
     async navigate(ctx: Ctx): Promise<void> {
       await ctx.rt('resetMarks')
-      const opened = await ctx.rt<boolean>('openFollowDialog', dialog)
-      if (!opened) ctx.log('warn', `Could not open the ${dialog} list`)
+      const opened = await ctx.rt<boolean>('openConnectionsDialog')
+      if (!opened) {
+        ctx.log('warn', 'Could not open the followers/following dialog from your profile.')
+        return
+      }
       await sleep(rand(1400, 900))
+      // Switch to the correct tab (Following for unfollow, Followers for remove).
+      const tabbed = await ctx.rt<boolean>('selectConnectionsTab', dialog)
+      if (!tabbed) ctx.log('warn', `Could not find the "${dialog}" tab in the dialog.`)
+      await sleep(rand(1200, 800))
       ctx.state.stall = 0
     },
     async step(ctx: Ctx) {
       if (ctx.dryRun) {
         const m = await ctx.rt('markFirstRow', kind)
-        if (!m.ok) return await endOrScroll(ctx, 'dialog')
+        if (!m.ok) {
+          await diagnose(ctx)
+          return await endOrScroll(ctx, 'dialog')
+        }
         ctx.log('action', wouldVerb, m.id)
         return { acted: true, skipped: true, target: m.id }
       }
 
       const row = await ctx.rt('firstRowActionRect', kind)
-      if (!row.ok || !row.rect) return await endOrScroll(ctx, 'dialog')
+      if (!row.ok || !row.rect) {
+        await diagnose(ctx)
+        return await endOrScroll(ctx, 'dialog')
+      }
 
       await ctx.clickRect(row.rect)
       // A confirm sheet appears for unfollow/remove on the web UI.
