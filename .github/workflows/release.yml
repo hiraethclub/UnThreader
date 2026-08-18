@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -18,47 +18,54 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
-
       - run: npm run typecheck
       - run: npm run check:injected
-
-      # Compile main/preload/renderer into out/ before packaging.
       - run: npm run build
 
-      # Package this OS's installers and publish them to the GitHub Release for
-      # the tag/version. electron-builder creates/updates the release.
-      - name: Package and publish
-        run: npx electron-builder --publish always
+      # Build installers only — publishing is handled by the release job.
+      - name: Package installers
+        run: npx electron-builder --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No code-signing in CI — produce unsigned artifacts.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-  # electron-builder uploads to a DRAFT release; flip it to published once all
-  # platforms have finished uploading their installers.
-  publish:
-    needs: release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/*.AppImage
+            release/*.deb
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+          if-no-files-found: ignore
+
+  release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish the draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          tag="v$(node -p "require('./package.json').version")"
-          id=$(gh api repos/${{ github.repository }}/releases --paginate \
-                --jq "[.[] | select(.tag_name==\"$tag\")][0].id")
-          if [ -z "$id" ] || [ "$id" = "null" ]; then
-            echo "No release found for tag $tag"; exit 1
-          fi
-          gh api -X PATCH repos/${{ github.repository }}/releases/$id \
-            -F draft=false -f name="UnThreader $tag" >/dev/null
-          echo "Published $tag"
+
+      - id: v
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: UnThreader ${{ steps.v.outputs.tag }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          files: dist/**/*
