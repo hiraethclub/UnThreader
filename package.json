@@ -1,6 +1,6 @@
 {
   "name": "unthreader",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Desktop app to bulk-delete your own Threads posts, replies, follows and followers.",
   "author": "Hiraeth Club",
   "license": "MIT",

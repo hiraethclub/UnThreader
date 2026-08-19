@@ -6,7 +6,7 @@ on:
     inputs:
       tag:
         description: Tag of the release to update
-        default: v0.1.0
+        default: v0.1.1
         required: true
 
 permissions:

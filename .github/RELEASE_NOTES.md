@@ -7,9 +7,9 @@ Threads web UI with your own logged-in session — your password never touches t
 
 | OS | File |
 | --- | --- |
-| Windows | `UnThreader-0.1.0-setup.exe` |
-| Linux | `UnThreader-0.1.0.AppImage` or `UnThreader-0.1.0.deb` |
-| macOS | `UnThreader-0.1.0.dmg` |
+| Windows | `UnThreader-0.1.1-setup.exe` |
+| Linux | `UnThreader-0.1.1.AppImage` or `UnThreader-0.1.1.deb` |
+| macOS | `UnThreader-0.1.1.dmg` |
 
 The binaries are **unsigned**, so the OS warns on first launch:
 - **Windows:** SmartScreen → *More info → Run anyway*

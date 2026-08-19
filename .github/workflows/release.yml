@@ -65,6 +65,7 @@ jobs:
         with:
           tag_name: ${{ steps.v.outputs.tag }}
           name: UnThreader ${{ steps.v.outputs.tag }}
+          body_path: .github/RELEASE_NOTES.md
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
