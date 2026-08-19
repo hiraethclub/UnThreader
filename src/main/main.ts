@@ -119,6 +119,12 @@ function buildMenu(): void {
 }
 
 function createWindow(): void {
+  // In dev the packaged app icon isn't applied, so point the window at the source
+  // PNG. Packaged builds get their icon from electron-builder (build/icon.*).
+  const devIcon = process.env['ELECTRON_RENDERER_URL']
+    ? join(__dirname, '../../build/icon.png')
+    : undefined
+
   const win = new BrowserWindow({
     width: 1360,
     height: 1040,
@@ -127,6 +133,7 @@ function createWindow(): void {
     center: true,
     title: 'UnThreader',
     backgroundColor: '#101014',
+    ...(devIcon ? { icon: devIcon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.mjs'),
       contextIsolation: true,
